@@ -21,6 +21,12 @@
 # DEALINGS IN THE SOFTWARE.
 #
 
+
+# Future TODO
+# event log for when nose is not detected - consider more events
+#   tuple of timestamp and status
+
+
 import sys
 import argparse
 
@@ -91,19 +97,39 @@ while True:
             reye = pose.Keypoints[reyeidx]
             leye = pose.Keypoints[leyeidx]
             nose = pose.Keypoints[noseidx]
-            left_bound, right_bound = (leye.x, reye.x) if leye.x < reye.x else (reye.x, leye.x)
-            # TODO dynamically define by chest existance but for now just hardcode
-            thermalROI=(left_bound-50, min(leye.y,reye.y), right_bound+50,nose.y)
-            breathROI=((left_bound, nose.y, right_bound,nose.y+50))
+            # dealing with reversable values -> posenet doesn't deal with upsideown
+            # left_bound, right_bound = (leye.x, reye.x) if leye.x < reye.x else (reye.x, leye.x)
+
+            # can always assume posenet will have left eye to the left of right
+            # this is presumeably due to training data
+            left_bound, right_bound = leye.x, reye.x
+            upper_bound, lower_bound = (min(leye.y,reye.y),nose.y)
+
+            # breathROI=((left_bound, nose.y, right_bound,nose.y+50))
         elif reyeidx > 0:
-            continue
+            nose = pose.Keypoints[noseidx]
+            reye = pose.Keypoints[reyeidx]
+            # left_bound, right_bound = (nose.x, reye.x) if nose.x < reye.x else (reye.x, nose.x)
+            # upper_bound, lower_bound = (min(reye.y, nose.y),max(reye.y,nose.y))
+
+            left_bound, right_bound = nose.x, reye.x
+            upper_bound, lower_bound = reye.y, nose.y
         elif leyeidx > 0:
-            continue
-        # should neither is seen
+            nose = pose.Keypoints[noseidx]
+            leye = pose.Keypoints[leyeidx]
+            # left_bound, right_bound = (nose.x, leye.x) if nose.x < leye.x else (leye.x, nose.x)
+            # upper_bound, lower_bound = (min(leye.y, nose.y),max(leye.y,nose.y))
+
+            left_bound, right_bound = leye.x, nose.x
+            upper_bound, lower_bound = leye.y, nose.y
+        # neither is seen
         else:
-            continue
+            left_bound, right_bound = (nose.x-50, nose.x+50)
+            upper_bound, lower_bound = (nose.y-50,nose.y+50)          
+        thermalROI = (left_bound,upper_bound,right_bound,lower_bound)
+        breathROI = (left_bound,nose.y,right_bound,nose.y+(nose.y-upper_bound)*.75)
         cudaDrawRect(img,thermalROI,(255,255,255,200))
-        cudaDrawRect(img,breathROI,(255,255,255,200))
+        cudaDrawRect(img,breathROI,(0,255,255,200))
 
     # TODO - checkout conversion to numpy array for cv2 and matplotlib
     # cudaToNumpy -> https://github.com/dusty-nv/jetson-inference/blob/master/docs/aux-image.md
