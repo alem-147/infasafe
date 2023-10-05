@@ -81,10 +81,7 @@ while True:
         print('ROI', pose.ROI)
         print('Links', pose.Links)
 
-        # TODO - draw reigon of interest about the mouth for thermal imaging
-        # check for each eye, define reigon as just above each eye
-        # for missing eye, define relative position of in place eye to nose
-        # and go in oppiste direction half the distance for roi
+        # TODO - set reigons based on links
         noseidx = pose.FindKeypoint('nose')
         leyeidx = pose.FindKeypoint('left_eye')
         reyeidx = pose.FindKeypoint('right_eye')
