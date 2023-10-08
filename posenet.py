@@ -58,7 +58,7 @@ net = poseNet(args.network, sys.argv, args.threshold)
 # input = videoSource(args.input, argv=sys.argv)
 # output = videoOutput(args.output, argv=sys.argv)
 
-input = videoSource("/dev/video0")
+input = videoSource("csi://0")
 output = videoOutput("display://0")
 
 # process frames until EOS or the user exits
