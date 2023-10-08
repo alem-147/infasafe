@@ -146,7 +146,7 @@ def display_temperature(img, val_k, loc, color):
 def transform_coordinates(region):
     # Constants
     RGB_WIDTH, RGB_HEIGHT = 1280, 720
-    IR_WIDTH, IR_HEIGHT = 160, 120
+    IR_WIDTH, IR_HEIGHT = 640, 480
 
     # Unpack region
     x1, y1, x2, y2 = region
