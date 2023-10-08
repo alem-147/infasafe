@@ -85,10 +85,10 @@ def rgb_thread():
                
             thermal_roi = (left_bound, upper_bound, right_bound, lower_bound)
             breath_roi = (left_bound,nose.y,right_bound,nose.y+(nose.y-upper_bound)*.75)
-           
+            print(thermal_roi)
 
             # Add the thermal ROI to the shared_regions queue
-            shared_regions.put(thermal_roi)
+            shared_regions.put(breath_roi)
 
             # Draw rectangles on the RGB frame to highlight thermal ROIs
             # for thermal_roi in shared_regions.queue:
