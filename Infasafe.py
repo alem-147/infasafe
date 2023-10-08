@@ -19,12 +19,10 @@ def rgb_thread():
     pose_net = poseNet('resnet18-body', threshold=0.15)
 
     # Initialize the camera or video input source
-    input = jetson_utils.videoSource("/dev/video0")
+    input = jetson_utils.videoSource("csi://0")
     output = jetson_utils.videoOutput("display://0")
 
     while True:
-        # Wait for a bit to limit frame rate
-        time.sleep(1/9)
 
         # Capture the next image from the RGB camera
         rgb_frame = input.Capture()
@@ -33,7 +31,7 @@ def rgb_thread():
             continue
 
         # Perform pose estimation on the RGB frame
-        poses = pose_net.Process(rgb_frame, overlay=args.overlay)
+        poses = pose_net.Process(rgb_frame)
 
         # Clear previous thermal ROIs
         shared_regions.queue.clear()
@@ -49,7 +47,7 @@ def rgb_thread():
             if leyeidx > 0 and reyeidx > 0:
                 reye = pose.Keypoints[reyeidx]
                 leye = pose.Keypoints[leyeidx]
-                nose = pose.Keypoints[noseidx]
+                nose = pose.Keypoints[nose_idx]
                 # dealing with reversable values -> posenet doesn't deal with upsideown
                 # left_bound, right_bound = (leye.x, reye.x) if leye.x < reye.x else (reye.x, leye.x)
 
@@ -60,7 +58,7 @@ def rgb_thread():
 
                 # breathROI=((left_bound, nose.y, right_bound,nose.y+50))
             elif reyeidx > 0:
-                nose = pose.Keypoints[noseidx]
+                nose = pose.Keypoints[nose_idx]
                 reye = pose.Keypoints[reyeidx]
                 # left_bound, right_bound = (nose.x, reye.x) if nose.x < reye.x else (reye.x, nose.x)
                 # upper_bound, lower_bound = (min(reye.y, nose.y),max(reye.y,nose.y))
@@ -68,7 +66,7 @@ def rgb_thread():
                 left_bound, right_bound = nose.x, reye.x
                 upper_bound, lower_bound = reye.y, nose.y
             elif leyeidx > 0:
-                nose = pose.Keypoints[noseidx]
+                nose = pose.Keypoints[nose_idx]
                 leye = pose.Keypoints[leyeidx]
                 # left_bound, right_bound = (nose.x, leye.x) if nose.x < leye.x else (leye.x, nose.x)
                 # upper_bound, lower_bound = (min(leye.y, nose.y),max(leye.y,nose.y))
@@ -85,24 +83,25 @@ def rgb_thread():
                 left_bound, right_bound = nose.x - 50, nose.x + 50
                 upper_bound, lower_bound = nose.y - 50, nose.y + 50
                 thermal_roi = (left_bound, upper_bound, right_bound, lower_bound)
+                print(thermal_roi)
 
                 # Add the thermal ROI to the shared_regions queue
                 shared_regions.put(thermal_roi)
 
             # Draw rectangles on the RGB frame to highlight thermal ROIs
-            for thermal_roi in shared_regions.queue:
+            # for thermal_roi in shared_regions.queue:
                 jetson_utils.cudaDrawRect(rgb_frame, thermal_roi, (255, 127, 0, 200))
 
-            # Display the RGB frame with overlays
-            output.Render(rgb_frame)
+        # Display the RGB frame with overlays
+        output.Render(rgb_frame)
 
-            # Update the output window
-            output.SetStatus("Pose Estimation | Network {:.0f} FPS".format(pose_net.GetNetworkFPS()))
+        # Update the output window
+        output.SetStatus("Pose Estimation | Network {:.0f} FPS".format(pose_net.GetNetworkFPS()))
 
-            # Check for exit condition
-            if not output.IsStreaming():
-                shared_regions.put(None)  # Add sentinel value to indicate end of stream
-                break
+        # Check for exit condition
+        if not output.IsStreaming():
+            shared_regions.put(None)  # Add sentinel value to indicate end of stream
+            break
 
 # IR Thread functions
 
@@ -144,7 +143,7 @@ def display_temperature(img, val_k, loc, color):
 def transform_coordinates(region):
     # Constants
     RGB_WIDTH, RGB_HEIGHT = 1280, 720
-    IR_WIDTH, IR_HEIGHT = 160, 120
+    IR_WIDTH, IR_HEIGHT = 640, 480
 
     # Unpack region
     x1, y1, x2, y2 = region

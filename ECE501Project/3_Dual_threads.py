@@ -1,32 +1,19 @@
+
+import sys
+import argparse
+
 import threading
 import queue
 import time
 import cv2
 import numpy as np
-from jetson_inference import detectNet
+from jetson_inference import poseNet
 import jetson_utils
 from uvctypes import *
 
 shared_regions = queue.Queue()
 q = queue.Queue()
 
-# RGB Thread functions
-
-def calculate_area(region):
-    left, top, right, bottom = region
-    return (right - left) * (bottom - top)
-
-def calculate_intersection_area(region1, region2):
-    x_left = max(region1[0], region2[0])
-    y_top = max(region1[1], region2[1])
-    x_right = min(region1[2], region2[2])
-    y_bottom = min(region1[3], region2[3])
-
-    if x_right < x_left or y_bottom < y_top:
-        return 0
-
-    intersection_area = (x_right - x_left) * (y_bottom - y_top)
-    return intersection_area
 
 # IR Thread functions (PureThermal2 uvc examples github)
 
