@@ -215,15 +215,14 @@ def ir_camera_thread():
                     ir_roi = transform_coordinates(thermal_roi)
 
                     ir_roi_data = data[ir_roi[1]:ir_roi[3], ir_roi[0]:ir_roi[2]]
-                    minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(ir_roi_data)
 
-                    average_temperature = ktoc(np.mean(data))
-                    
-                    print("Average Temperature: {:.2f} °C".format(average_temperature))
-                    print("Max Temperature in ir_roi: {:.2f} °C".format(ktoc(maxVal)))  # Print the max temperature
+                    average_temperature = ktoc(np.mean(ir_roi_data))
+                    max_temperature = ktoc(np.max(ir_roi_data))
+                 
+                    print("Average Temperature in ir_roi: {:.2f} °C".format(average_temperature))
+                    print("Max Temperature in ir_roi: {:.2f} °C".format(max_temperature))
 
                     img = raw_to_8bit(data)
-                    display_temperature(img, maxVal, maxLoc, (0, 0, 255))
 
                     # Draw the transformed ROI on the IR image
                     cv2.rectangle(img, (ir_roi[0], ir_roi[1]), (ir_roi[2], ir_roi[3]), (0, 255, 0), 2)
