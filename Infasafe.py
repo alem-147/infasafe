@@ -38,15 +38,19 @@ def rgb_thread():
 
         # Iterate over detected poses and extract nose keypoint
         for pose in poses:
+
             nose_idx = pose.FindKeypoint('nose')
-            leyeidx = pose.FindKeypoint('left_eye')
-            reyeidx = pose.FindKeypoint('right_eye')
+            leye_idx = pose.FindKeypoint('left_eye')
+            reye_idx = pose.FindKeypoint('right_eye')
+
+            thermal_roi = (0,0,0,0)
+            breath_roi = (0,0,0,0)
 
             if nose_idx < 0:
                 continue
-            if leyeidx > 0 and reyeidx > 0:
-                reye = pose.Keypoints[reyeidx]
-                leye = pose.Keypoints[leyeidx]
+            if leye_idx > 0 and reye_idx > 0:
+                reye = pose.Keypoints[reye_idx]
+                leye = pose.Keypoints[leye_idx]
                 nose = pose.Keypoints[nose_idx]
                 # dealing with reversable values -> posenet doesn't deal with upsideown
                 # left_bound, right_bound = (leye.x, reye.x) if leye.x < reye.x else (reye.x, leye.x)
@@ -57,17 +61,17 @@ def rgb_thread():
                 upper_bound, lower_bound = (min(leye.y,reye.y),nose.y)
 
                 # breathROI=((left_bound, nose.y, right_bound,nose.y+50))
-            elif reyeidx > 0:
+            elif reye_idx > 0:
                 nose = pose.Keypoints[nose_idx]
-                reye = pose.Keypoints[reyeidx]
+                reye = pose.Keypoints[reye_idx]
                 # left_bound, right_bound = (nose.x, reye.x) if nose.x < reye.x else (reye.x, nose.x)
                 # upper_bound, lower_bound = (min(reye.y, nose.y),max(reye.y,nose.y))
 
                 left_bound, right_bound = nose.x, reye.x
                 upper_bound, lower_bound = reye.y, nose.y
-            elif leyeidx > 0:
+            elif leye_idx > 0:
                 nose = pose.Keypoints[nose_idx]
-                leye = pose.Keypoints[leyeidx]
+                leye = pose.Keypoints[leye_idx]
                 # left_bound, right_bound = (nose.x, leye.x) if nose.x < leye.x else (leye.x, nose.x)
                 # upper_bound, lower_bound = (min(leye.y, nose.y),max(leye.y,nose.y))
 
@@ -78,19 +82,18 @@ def rgb_thread():
                 left_bound, right_bound = (nose.x-50, nose.x+50)
                 upper_bound, lower_bound = (nose.y-50,nose.y+50)
 
-                # Define ROI based on the nose keypoint
-                nose = pose.Keypoints[nose_idx]
-                left_bound, right_bound = nose.x - 50, nose.x + 50
-                upper_bound, lower_bound = nose.y - 50, nose.y + 50
-                thermal_roi = (left_bound, upper_bound, right_bound, lower_bound)
-                print(thermal_roi)
+               
+            thermal_roi = (left_bound, upper_bound, right_bound, lower_bound)
+            breath_roi = (left_bound,nose.y,right_bound,nose.y+(nose.y-upper_bound)*.75)
+            print(thermal_roi)
 
-                # Add the thermal ROI to the shared_regions queue
-                shared_regions.put(thermal_roi)
+            # Add the thermal ROI to the shared_regions queue
+            shared_regions.put(thermal_roi)
 
             # Draw rectangles on the RGB frame to highlight thermal ROIs
             # for thermal_roi in shared_regions.queue:
-                jetson_utils.cudaDrawRect(rgb_frame, thermal_roi, (255, 127, 0, 200))
+            jetson_utils.cudaDrawRect(rgb_frame, thermal_roi, (255, 127, 0, 200))
+            jetson_utils.cudaDrawRect(rgb_frame, breath_roi, (0, 127, 255, 200))
 
         # Display the RGB frame with overlays
         output.Render(rgb_frame)
