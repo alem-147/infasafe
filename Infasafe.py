@@ -85,10 +85,10 @@ def rgb_thread():
                
             thermal_roi = (left_bound, upper_bound, right_bound, lower_bound)
             breath_roi = (left_bound,nose.y,right_bound,nose.y+(nose.y-upper_bound)*.75)
-            print(thermal_roi)
+           
 
             # Add the thermal ROI to the shared_regions queue
-            shared_regions.put(breath_roi)
+            shared_regions.put(thermal_roi)
 
             # Draw rectangles on the RGB frame to highlight thermal ROIs
             # for thermal_roi in shared_regions.queue:
@@ -205,19 +205,25 @@ def ir_camera_thread():
                     data = q.get(True, 500)
                     if data is None:
                         break
+
                     data = cv2.resize(data[:, :], (640, 480))
-                    minVal, maxVal, _, _ = cv2.minMaxLoc(data)
-                    average_temperature = ktoc(np.mean(data))
-                    print("Average Temperature: {:.2f} °C".format(average_temperature))
-                    img = raw_to_8bit(data)
-                    display_temperature(img, minVal, (0, 0), (255, 0, 0))
-                    display_temperature(img, maxVal, (img.shape[1] - 200, 0), (0, 0, 255))
                     
                     # Get the shared thermal ROI from the RGB thread
                     thermal_roi = shared_regions.get()
 
                     # Transform the ROI coordinates to IR image space
                     ir_roi = transform_coordinates(thermal_roi)
+
+                    ir_roi_data = data[ir_roi[1]:ir_roi[3], ir_roi[0]:ir_roi[2]]
+                    minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(ir_roi_data)
+
+                    average_temperature = ktoc(np.mean(data))
+                    
+                    print("Average Temperature: {:.2f} °C".format(average_temperature))
+                    print("Max Temperature in ir_roi: {:.2f} °C".format(ktoc(maxVal)))  # Print the max temperature
+
+                    img = raw_to_8bit(data)
+                    display_temperature(img, maxVal, maxLoc, (0, 0, 255))
 
                     # Draw the transformed ROI on the IR image
                     cv2.rectangle(img, (ir_roi[0], ir_roi[1]), (ir_roi[2], ir_roi[3]), (0, 255, 0), 2)
