@@ -88,7 +88,7 @@ def rgb_thread():
             print(thermal_roi)
 
             # Add the thermal ROI to the shared_regions queue
-            shared_regions.put(thermal_roi)
+            shared_regions.put(breath_roi)
 
             # Draw rectangles on the RGB frame to highlight thermal ROIs
             # for thermal_roi in shared_regions.queue:
@@ -146,7 +146,7 @@ def display_temperature(img, val_k, loc, color):
 def transform_coordinates(region):
     # Constants
     RGB_WIDTH, RGB_HEIGHT = 1280, 720
-    IR_WIDTH, IR_HEIGHT = 640, 480
+    IR_WIDTH, IR_HEIGHT = 160, 120
 
     # Unpack region
     x1, y1, x2, y2 = region
@@ -212,6 +212,16 @@ def ir_camera_thread():
                     img = raw_to_8bit(data)
                     display_temperature(img, minVal, (0, 0), (255, 0, 0))
                     display_temperature(img, maxVal, (img.shape[1] - 200, 0), (0, 0, 255))
+                    
+                    # Get the shared thermal ROI from the RGB thread
+                    thermal_roi = shared_regions.get()
+
+                    # Transform the ROI coordinates to IR image space
+                    ir_roi = transform_coordinates(thermal_roi)
+
+                    # Draw the transformed ROI on the IR image
+                    cv2.rectangle(img, (ir_roi[0], ir_roi[1]), (ir_roi[2], ir_roi[3]), (0, 255, 0), 2)
+
                     cv2.imshow('Lepton Radiometry', img)
                     cv2.waitKey(1)
 
