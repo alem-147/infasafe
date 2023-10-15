@@ -24,4 +24,11 @@ live video:
 https://pytorch.org/blog/running-pytorch-models-on-jetson-nano/
 
 # Models I want to use
+1. SyRIP: https://web.northeastern.edu/ostadabbas/2020/10/09/infant-pose-learning-with-small-data/
 
+# What to do
+1. convert the models from pytorch files to onnx
+2. either deploy as tensorrt engine or jetson inference model
+
+## noteable dependencies not on nano
+onnxruntime
