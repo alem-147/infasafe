@@ -8,6 +8,15 @@ import numpy as np
 from jetson_inference import poseNet
 import jetson_utils
 from uvctypes import *
+import datetime
+import csv
+
+# Create a CSV file for data export
+csv_filename = "breath_data.csv"
+csv_file = open(csv_filename, mode='w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(["Timestamp", "MaxVal"])
+
 
 shared_regions = queue.Queue()
 q = queue.Queue()
@@ -220,6 +229,10 @@ def ir_camera_thread():
                         # Draw the transformed ROI on the IR image
                         cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
                         cv2.imshow('Lepton Radiometry', img)
+                        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
+                        # Write timestamp and maxVal to the CSV file
+                        csv_writer.writerow([timestamp, maxVal])
 
                     
                     #cv2.imshow('Lepton Radiometry', img)
@@ -245,4 +258,8 @@ ir_thread.start()
 
 rgb_thread.join()
 ir_thread.join()
+
+
+# Close the CSV file
+csv_file.close()
 
