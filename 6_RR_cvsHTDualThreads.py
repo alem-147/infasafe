@@ -13,7 +13,7 @@ import platform
 import board
 import adafruit_ahtx0
 import datetime
-from scipy.signal import find_peaks
+import scipy.signal
 
 
 # Create sensor object, communicating over the board's default I2C bus
@@ -29,13 +29,9 @@ q = queue.Queue(BUF_SIZE)
 shared_keypoints = queue.Queue()
 
 class RespiratoryRateCalculator:
-    def __init__(self, buffer_size=100, start_size=20):
+    def __init__(self, buffer_size=200, start_size=60):
         self.buffer_size = buffer_size
         self.start_size = start_size
-        self.values_buffer = []
-        self.timestamps_buffer = []
-        
-    def reset(self):
         self.values_buffer = []
         self.timestamps_buffer = []
 
@@ -51,19 +47,33 @@ class RespiratoryRateCalculator:
         if len(self.values_buffer) < self.start_size:
             return None
 
-        # Smooth the data using a moving average filter
-        window_size = 5  # Adjust this value
-        smoothed = pd.Series(self.values_buffer).rolling(window=window_size).mean().dropna()
+        data = np.array(self.values_buffer)
 
-        # Find peaks in the smoothed data
-        peaks, _ = find_peaks(smoothed, distance=5)  # Adjust the distance parameter as needed
+        # Multiply the data by a Hamming window
+        window = scipy.signal.hamming(len(data), sym=0)
+        data *= window
 
-        # Calculate the time duration in seconds between the first and last frame in the buffer
+        # FFT transform and modulus squared
+        fft = np.fft.fft(data)
+        fft = np.absolute(fft)
+        fft = np.square(fft)
+
+        # Frequency samples
         time_duration = (self.timestamps_buffer[-1] - self.timestamps_buffer[0]).seconds
+        sample_interval = time_duration / len(self.values_buffer)
+        frequencies = np.fft.fftfreq(len(data), d=sample_interval)
 
-        # Calculate RR
-        rr = len(peaks) * 60 / time_duration
-        return rr
+        # Find the index of the maximum FFT value and get the respiration frequency
+        max_idx = np.argmax(fft)
+        breaths_per_sec = frequencies[max_idx]
+        breaths_per_min = breaths_per_sec * 60
+
+        return breaths_per_min
+
+    def reset(self):
+        """Reset the buffers."""
+        self.values_buffer = []
+        self.timestamps_buffer = []
 
 # Create an instance of the RespiratoryRateCalculator
 rr_calculator = RespiratoryRateCalculator()
@@ -237,8 +247,6 @@ def ir_camera_thread():
           data = cv2.resize(data[:,:], (960, 720))
           data = cv2.flip(data, 0)
           data = cv2.flip(data, 1)
-
-          timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
 
           # Get the shared thermal ROI from the RGB thread
           try:
