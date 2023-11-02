@@ -13,13 +13,8 @@ import platform
 import board
 import adafruit_ahtx0
 import datetime
-import csv
+from scipy.signal import find_peaks
 
-# Create a CSV file for data export
-csv_filename = "breath_data.csv"
-csv_file = open(csv_filename, mode='w', newline='')
-csv_writer = csv.writer(csv_file)
-csv_writer.writerow(["Timestamp", "AvgVal"])
 
 # Create sensor object, communicating over the board's default I2C bus
 i2c = board.I2C()  # uses board.SCL and board.SDA
@@ -32,6 +27,46 @@ current_humidity = 0.0
 BUF_SIZE = 2
 q = queue.Queue(BUF_SIZE)
 shared_keypoints = queue.Queue()
+
+class RespiratoryRateCalculator:
+    def __init__(self, buffer_size=100, start_size=20):
+        self.buffer_size = buffer_size
+        self.start_size = start_size
+        self.values_buffer = []
+        self.timestamps_buffer = []
+        
+    def reset(self):
+        self.values_buffer = []
+        self.timestamps_buffer = []
+
+    def add_value(self, value):
+        timestamp = datetime.datetime.now()
+        if len(self.values_buffer) >= self.buffer_size:
+            self.values_buffer.pop(0)
+            self.timestamps_buffer.pop(0)
+        self.values_buffer.append(value)
+        self.timestamps_buffer.append(timestamp)
+
+    def calculate_rr(self):
+        if len(self.values_buffer) < self.start_size:
+            return None
+
+        # Smooth the data using a moving average filter
+        window_size = 5  # Adjust this value
+        smoothed = pd.Series(self.values_buffer).rolling(window=window_size).mean().dropna()
+
+        # Find peaks in the smoothed data
+        peaks, _ = find_peaks(smoothed, distance=5)  # Adjust the distance parameter as needed
+
+        # Calculate the time duration in seconds between the first and last frame in the buffer
+        time_duration = (self.timestamps_buffer[-1] - self.timestamps_buffer[0]).seconds
+
+        # Calculate RR
+        rr = len(peaks) * 60 / time_duration
+        return rr
+
+# Create an instance of the RespiratoryRateCalculator
+rr_calculator = RespiratoryRateCalculator()
 
 # Create a function to update temperature and humidity values
 def update_sensor_values():
@@ -224,7 +259,10 @@ def ir_camera_thread():
                   nose_loc = nose_x, nose_y
                   roi_data = data[ny2:ny1, nx2:nx1]
                   avgVal = np.mean(roi_data)
-                  csv_writer.writerow([timestamp, avgVal])
+                  rr_calculator.add_value(avgVal)
+                  rr = rr_calculator.calculate_rr()
+                  if rr is not None:
+                     print(f"Respiratory Rate: {rr:.2f} breaths/minute")
                   pass
               if leye is not None:
                   # Perform actions using left eye keypoint 
