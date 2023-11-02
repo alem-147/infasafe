@@ -103,9 +103,9 @@ def ktoc(val):
     return (val - 27315) / 100.0
 
 def raw_to_8bit(data):
-    cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
-    #np.right_shift(data, 8, data)
-    return cv2.cvtColor(data, cv2.COLOR_GRAY2RGB)
+    cv2.normalize(data, data, 0, 65535, cv2.NORM_MINMAX)
+    np.right_shift(data, 8, data)
+    return cv2.cvtColor(np.uint8(data), cv2.COLOR_GRAY2RGB)
 
 def display_temperature(img, val_k, loc, color):
     val = ktof(val_k)
@@ -163,36 +163,31 @@ def ir_camera_thread():
                     data = cv2.resize(data[:, :], (960, 720))
                     data = cv2.flip(data, 0)
                     data = cv2.flip(data, 1)
-                    cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
-                    data = data.astype(np.uint8)
-                    img = cv2.cvtColor(data, cv2.COLOR_GRAY2RGB)
                     
                     # Get the shared thermal ROI from the RGB thread
-                    try:
-                        shared_keypoint_data = shared_keypoints.get(block=False)
-                        nose = shared_keypoint_data["nose"]
-                        left_eye = shared_keypoint_data["left_eye"]
-                        right_eye = shared_keypoint_data["right_eye"]
+                    if not shared_keypoints.empty():
+                        
+                        thermal_roi = shared_keypoints.get()
+                        x1, y1, x2, y2 = thermal_roi
+                        x1 = int(x1-180)
+                        x2 = int(x2-190)
+                        y1 = int(y1-60)
+                        y2 = int(y2-40)
+                        #print(x1,x2,y1,y2)
+                        #print(data.shape)
+                        breath_rom = data[y1:y2, x2:x1]
+                        #print(breath_rom)
+                        minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(breath_rom)
+                        img = raw_to_8bit(data)
+                        display_temperature(img, maxVal, (x1,y1), (0, 255, 0))
+                        #display_temperature(img, average_temperature , (x1,y1), (0, 255, 0))
+                        
+                        # Draw the transformed ROI on the IR image
+                        cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
+                        cv2.imshow('Lepton Radiometry', img)
 
-                        # Use the keypoints as needed
-                        if nose is not None:
-                            # Perform actions using nose keypoint
-                            cv2.circle(img, nose, 1, (0, 255, 0), -1)
-                            # cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
-                            pass
-                        if left_eye is not None:
-                            # Perform actions using left eye keypoint
-                            cv2.circle(img, left_eye, 1, (255, 0, 0), -1)
-                            pass
-                        if right_eye is not None:
-                            # Perform actions using right eye keypoint
-                            cv2.circle(img, right_eye, 1, (0, 0, 255), -1)
-                            pass
-
-                    except queue.Empty:
-                        pass  # Queue is empty, continue without using keypoints
                     
-                    cv2.imshow('Lepton Radiometry', img)
+                    #cv2.imshow('Lepton Radiometry', img)
                     cv2.waitKey(1)
 
                 cv2.destroyAllWindows()
@@ -207,12 +202,12 @@ def ir_camera_thread():
 
 # Start the RGB/IR threads
 
-#rgb_thread = threading.Thread(target=rgb_camera_thread, daemon=True)
-ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
+rgb_thread = threading.Thread(target=rgb_camera_thread, daemon=True)
+#ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
 
-#rgb_thread.start()
-ir_thread.start()
+rgb_thread.start()
+#ir_thread.start()
 
-#rgb_thread.join()
-ir_thread.join()
+rgb_thread.join()
+#ir_thread.join()
 
