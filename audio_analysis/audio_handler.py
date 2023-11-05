@@ -4,7 +4,21 @@ import time
 import librosa
 import wave
 
-#for now this works but will need to add some filtering to get out the noise
+'''
+Audio Handler class
+args:
+    --duration: represents the total duration that the main loop runs for
+    --svm: represents the unpickled svm that will identify the crying
+    --knn: represents the unpickled knn that will classify the type of crying
+
+    TODO - needs to return some sort of indicator for the event handler
+    TODO - the reading of the data needs to be float32 instead of int16.
+            the librosa load provides the time series in float32 but with the
+            current way of loading live data (self.p.open in int16 for audio quality)
+            the mfccs would not be the same unless the feature extraction was loading through the 
+            wave module in int16 instead of with librosa.load()
+            -> this may be able to be resolved with a higher quality mic
+'''
 class AudioHandler(object):
     def __init__(self, duration, svm, knn, debug=False):
         self.FORMAT = pyaudio.paInt16
