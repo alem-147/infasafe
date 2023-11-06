@@ -55,7 +55,7 @@ class AudioHandler(object):
         prediction = self.svm.predict(mfccs.reshape(1, -1))
         if prediction == 'positive':
             cry_classification = self.knn.predict(mfccs.reshape(1, -1))
-            print('cry guess', cry_classification)
+            # print('cry guess', cry_classification)
         # print('prediction',prediction,'end mfccs',mfccs)
         self.frame_to_proc = []
 
@@ -81,7 +81,7 @@ class AudioHandler(object):
             # print('prediction', prediction,'clip mfccs',mfccs)
             if prediction == 'positive':
                 cry_classification = self.knn.predict(mfccs.reshape(1, -1))
-                print('cry guess', cry_classification)
+                # print('cry guess', cry_classification)
             self.frame_to_proc = []
         return None, pyaudio.paContinue
 
@@ -113,15 +113,16 @@ class DemoAudioHandler(object):
     def start(self):
         self.p = pyaudio.PyAudio()
         self.FORMAT = self.p.get_format_from_width(self.wf.getsampwidth())
-        print(self.FORMAT)
+        # print(self.FORMAT)
         self.CHANNELS = self.wf.getnchannels()
         self.RATE = self.wf.getframerate()
-        print(self.CHANNELS, self.RATE)
+        # print(self.CHANNELS, self.RATE)
         self.stream = self.p.open(format=self.FORMAT,
                                   channels=self.CHANNELS,
                                   rate=self.RATE,
                                   input=True,
-                                  output=False,
+                                  output=True,
+                                  
                                   stream_callback=self.callback,
                                   frames_per_buffer=self.CHUNK)
 
