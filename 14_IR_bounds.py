@@ -27,6 +27,9 @@ sensor = adafruit_ahtx0.AHTx0(i2c)
 current_temperature = 0.0
 current_humidity = 0.0
 
+IR_IMAGE_WIDTH = 960
+IR_IMAGE_HEIGHT = 720
+
 BUF_SIZE = 2
 q = queue.Queue(BUF_SIZE)
 shared_keypoints = queue.Queue()
@@ -154,12 +157,12 @@ class RespiratoryRateCalculator:
 
 # Sensor Class to update temperature and humidity values
 class SensorUpdater:
-    def __init__(self, sensor, update_interval, high_temp_threshold):
+    def __init__(self, sensor, update_interval, high_room_temp_threshold):
         self.sensor = sensor
         self.running = True
         self.update_interval = update_interval
-        self.high_temp_threshold = high_temp_threshold  # High temperature threshold
-        self.high_temp_event = threading.Event()  # Event flag for high temperature
+        self.high_room_temp_threshold = high_room_temp_threshold  # High temperature threshold
+        self.high_room_temp_event = threading.Event()  # Event flag for high temperature
 
 
     def update_sensor_values(self):
@@ -171,8 +174,8 @@ class SensorUpdater:
             print("Humidity: %0.1f %%" % current_relative_humidity)
 
             # Check if the temperature exceeds the threshold and set the event if it does
-            if current_temperature > self.high_temp_threshold:
-                self.high_temp_event.set()
+            if current_temperature > self.high_room_temp_threshold:
+                self.high_room_temp_event.set()
 
             time.sleep(self.update_interval)
 
@@ -215,7 +218,7 @@ def rgb_camera_thread():
             reyeidx = pose.FindKeypoint('right_eye')
 			
             if noseidx < 0 :
-                print("No nose")
+                event_monitor.set_event(no_nose_event_name)
                 continue
 
             nose = pose.Keypoints[noseidx]
@@ -287,6 +290,14 @@ def display_temperature(img, val_k, loc, color):
   x, y = loc
   cv2.line(img, (x - 2, y), (x + 2, y), color, 1)
   cv2.line(img, (x, y - 2), (x, y + 2), color, 1)
+  
+def is_within_boundaries(x, y, width, height):
+    # Check if the coordinates are within the image boundaries
+    return 0 <= x < width and 0 <= y < height
+    
+def is_region_within_boundaries(x1, y1, x2, y2, width, height):
+    # Check if both top-left and bottom-right corners are within the image boundaries
+    return (0 <= x1 < width) and (0 <= y1 < height) and (0 <= x2 < width) and (0 <= y2 < height)
 
 def ir_camera_thread():
   ctx = POINTER(uvc_context)()
@@ -341,10 +352,9 @@ def ir_camera_thread():
           data = q.get(True, 500)
           if data is None:
             break
-          data = cv2.resize(data[:,:], (960, 720))
+          data = cv2.resize(data[:,:], (IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT))
           data = cv2.flip(data, 0)
           data = cv2.flip(data, 1)
-          minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(data)
 
           # Get the shared thermal ROI from the RGB thread
           try:
@@ -357,24 +367,30 @@ def ir_camera_thread():
               if nose is not None:
                   # Perform actions using nose keypoint 
                   nose_x = int(nose.x-190)
-                  nx1 = int(nose.x-120)
-                  nx2 = int(nose.x-190)
                   nose_y = int(nose.y-20)
+                  nx1 = int(nose.x-120)
                   ny1 = int(nose.y-15)
+                  nx2 = int(nose.x-190)
                   ny2 = int(nose.y-40)
                   nose_loc = nose_x, nose_y
-                  roi_data = data[ny2:ny1, nx2:nx1]
-                  avgVal = np.mean(roi_data)
-                  rr_calculator.add_value(avgVal)
-                  # Periodically calculate the respiratory rate
-                  if len(rr_calculator.values_buffer) >= rr_calculator.start_size:
-                      rr = rr_calculator.calculate_rr()
-                      if rr is not None:
-                          print(f"Respiratory Rate: {rr:.2f} breaths/minute")
-                          # Instead of plotting here, put the data on the queue
-                          plot_queue.put((rr_calculator.values_buffer))
-              else:
-                 print("no nose")
+                  nose_region_in_bounds = is_region_within_boundaries(nx1, ny1, nx2, ny2, IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT)
+                  if nose_region_in_bounds:
+                     roi_data = data[ny2:ny1, nx2:nx1]
+                     avgVal = np.mean(roi_data)
+                     rr_calculator.add_value(avgVal)
+                     # Periodically calculate the respiratory rate
+                     if len(rr_calculator.values_buffer) >= rr_calculator.start_size:
+                        rr = rr_calculator.calculate_rr()
+                        if rr is not None:
+                            #print(f"Respiratory Rate: {rr:.2f} breaths/minute")
+                            # Instead of plotting here, put the data on the queue
+                            plot_queue.put((rr_calculator.values_buffer))
+                  else:
+                    # Set flag or log that the nose region is out of bounds
+                    event_monitor.set_event(out_of_bounds_event_name)
+                    # ... code to handle out of bounds ...
+                    continue  # Skip further processing for this keypoint
+
               if leye is not None and reye is not None:
                   # Combined actions for both eyes
                   cex1 = int(max(leye.x,reye.x)-130)
@@ -468,7 +484,7 @@ class EventMonitor:
                 if event.is_set():
                     print(f"Event occurred: {event_name}")
                     self.reset_event(event_name)
-            time.sleep(0.1)  # Sleep to prevent busy waiting
+            time.sleep(5)  # Sleep to prevent busy waiting
 
     def stop_monitoring(self):
         """Stop the monitoring loop."""
@@ -482,11 +498,17 @@ event_monitor = EventMonitor()
 # Create an instance of the RespiratoryRateCalculator
 rr_calculator = RespiratoryRateCalculator()
 
-sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_temp_threshold=23)
+sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_room_temp_threshold=23)
 
 # Register events with the EventMonitor
-high_temp_event_name = 'High Room Temperature Event'
-event_monitor.register_event(high_temp_event_name)
+high_room_temp_event_name = 'High Room Temperature Event'
+event_monitor.register_event(high_room_temp_event_name)
+
+out_of_bounds_event_name = 'ROI Out of Bounds Event'
+event_monitor.register_event(out_of_bounds_event_name)
+
+no_nose_event_name = 'No Nose Event'
+event_monitor.register_event(no_nose_event_name)
 
 ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
 sensor_thread = threading.Thread(target=sensor_updater.update_sensor_values, daemon=True)
@@ -505,14 +527,28 @@ try:
         try:
             # Get data from the queue without blocking
             data_to_plot = plot_queue.get_nowait()
-            if sensor_updater.high_temp_event.is_set():
-                event_monitor.set_event(high_temp_event_name)
-                sensor_updater.high_temp_event.clear()  # Reset the event
             # Plot the data using the main thread
             rr_calculator.plot_data()
         except queue.Empty:
             # No data to plot, can sleep or do other work
-            time.sleep(0.1)
+            pass
+            
+        if sensor_updater.high_room_temp_event.is_set():
+            event_monitor.set_event(high_room_temp_event_name)
+            sensor_updater.high_room_temp_event.clear()  # Reset the event
+            
+        # Check for out of bounds event
+        if event_monitor.events[out_of_bounds_event_name].is_set():
+            event_monitor.set_event(out_of_bounds_event_name)
+            event_monitor.reset_event(out_of_bounds_event_name)
+
+        # Check for no nose event
+        if event_monitor.events[no_nose_event_name].is_set():
+            event_monitor.set_event(no_nose_event_name)
+            event_monitor.reset_event(no_nose_event_name)
+            
+        time.sleep(0.1)
+            
 except KeyboardInterrupt:
     print("Exiting...")
     sensor_updater.stop()

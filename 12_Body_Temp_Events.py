@@ -26,6 +26,7 @@ sensor = adafruit_ahtx0.AHTx0(i2c)
 # Initialize variables to store temperature and humidity values
 current_temperature = 0.0
 current_humidity = 0.0
+body_temp = 0.0
 
 BUF_SIZE = 2
 q = queue.Queue(BUF_SIZE)
@@ -96,9 +97,6 @@ class RespiratoryRateCalculator:
         breaths_per_min = abs(breaths_per_sec * 60)
 
         # Store the calculated respiratory rate
-        if len(self.timestamps_rr_buffer) >= self.buffer_size:
-            self.timestamps_rr_buffer.pop(0)
-            self.respiratory_rates.pop(0)
         self.respiratory_rates.append(breaths_per_min)
         self.timestamps_rr_buffer.append(self.timestamps_buffer[-1])
 
@@ -151,33 +149,6 @@ class RespiratoryRateCalculator:
         plt.tight_layout()
         plt.show()
 
-
-# Sensor Class to update temperature and humidity values
-class SensorUpdater:
-    def __init__(self, sensor, update_interval, high_temp_threshold):
-        self.sensor = sensor
-        self.running = True
-        self.update_interval = update_interval
-        self.high_temp_threshold = high_temp_threshold  # High temperature threshold
-        self.high_temp_event = threading.Event()  # Event flag for high temperature
-
-
-    def update_sensor_values(self):
-        global current_temperature, current_humidity
-        while self.running:
-            current_temperature = round(self.sensor.temperature, 2)
-            current_humidity = round(self.sensor.relative_humidity, 2)
-            print("\nTemperature: %0.1f C" % current_temperature)
-            print("Humidity: %0.1f %%" % current_relative_humidity)
-
-            # Check if the temperature exceeds the threshold and set the event if it does
-            if current_temperature > self.high_temp_threshold:
-                self.high_temp_event.set()
-
-            time.sleep(self.update_interval)
-
-    def stop(self):
-        self.running = False
 
 # RGB Thread functions
 
@@ -344,7 +315,6 @@ def ir_camera_thread():
           data = cv2.resize(data[:,:], (960, 720))
           data = cv2.flip(data, 0)
           data = cv2.flip(data, 1)
-          minVal, maxVal, minLoc, maxLoc = cv2.minMaxLoc(data)
 
           # Get the shared thermal ROI from the RGB thread
           try:
@@ -383,6 +353,7 @@ def ir_camera_thread():
                   cey2 = int(min(leye.y,reye.y)-80)
                   ce_data = data[cey2:cey1, cex2:cex1]
                   ceMaxVal = np.max(ce_data)
+                  body_temp_updater.check_high_body_temperature(ceMaxVal)
               elif leye is not None:
                   # Perform actions using left eye keypoint 
                   leye_x = int(leye.x-180)
@@ -439,6 +410,51 @@ def ir_camera_thread():
       libuvc.uvc_unref_device(dev)
   finally:
     libuvc.uvc_exit(ctx)
+    
+# Sensor Class to update temperature and humidity values
+class SensorUpdater:
+    def __init__(self, sensor, update_interval, high_temp_threshold):
+        self.sensor = sensor
+        self.running = True
+        self.update_interval = update_interval
+        self.high_temp_threshold = high_temp_threshold  # High temperature threshold
+        self.high_room_temp_event = threading.Event()  # Event flag for high temperature
+
+
+    def update_sensor_values(self):
+        global current_temperature, current_humidity
+        while self.running:
+            current_temperature = round(self.sensor.temperature, 2)
+            current_humidity = round(self.sensor.relative_humidity, 2)
+            print(current_temperature)
+
+            # Check if the temperature exceeds the threshold and set the event if it does
+            if current_temperature > self.high_temp_threshold:
+                self.high_room_temp_event.set()
+
+            time.sleep(self.update_interval)
+
+    def stop(self):
+        self.running = False
+    
+    
+class BodyTemperatureUpdater:
+    def __init__(self, threshold):
+        self.threshold = threshold
+        self.high_body_temp_event = threading.Event()
+
+    def update_body_temperature(self, max_val):
+        global body_temp
+        body_temp = ktof(max_val)  # You can adjust this calculation based on your requirements
+        return body_temp
+
+    def check_high_body_temperature(self, max_val):
+        body_temp = self.update_body_temperature(max_val)
+        if body_temp > self.threshold:
+            self.high_body_temp_event.set()
+
+    def reset_high_room_temp_event(self):
+        self.high_body_temp_event.clear()
 
 class EventMonitor:
     def __init__(self):
@@ -482,11 +498,16 @@ event_monitor = EventMonitor()
 # Create an instance of the RespiratoryRateCalculator
 rr_calculator = RespiratoryRateCalculator()
 
-sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_temp_threshold=23)
+sensor_updater = SensorUpdater(sensor=sensor, update_interval=2, high_temp_threshold=23)
 
 # Register events with the EventMonitor
-high_temp_event_name = 'High Room Temperature Event'
-event_monitor.register_event(high_temp_event_name)
+high_room_temp_event_name = 'High Room Temperature Event'
+event_monitor.register_event(high_room_temp_event_name)
+
+high_body_temp_event_name = 'High Body Temperature Event'
+event_monitor.register_event(high_body_temp_event_name)
+
+body_temp_updater = BodyTemperatureUpdater(threshold=92)
 
 ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
 sensor_thread = threading.Thread(target=sensor_updater.update_sensor_values, daemon=True)
@@ -502,17 +523,20 @@ rgb_thread.start()
 try:
     while True:
         # Check if there is new data to plot
-        try:
+        #try:
             # Get data from the queue without blocking
-            data_to_plot = plot_queue.get_nowait()
-            if sensor_updater.high_temp_event.is_set():
-                event_monitor.set_event(high_temp_event_name)
-                sensor_updater.high_temp_event.clear()  # Reset the event
+            #data_to_plot = plot_queue.get_nowait()
+        if sensor_updater.high_room_temp_event.is_set():
+           event_monitor.set_event(high_room_temp_event_name)
+           sensor_updater.high_room_temp_event.clear()  # Reset the event
+        elif body_temp_updater.high_body_temp_event.is_set():
+           event_monitor.set_event(high_body_temp_event_name)
+           body_temp_calculator.reset_high_body_temp_event()
             # Plot the data using the main thread
-            rr_calculator.plot_data()
-        except queue.Empty:
+            #rr_calculator.plot_data()
+        #except queue.Empty:
             # No data to plot, can sleep or do other work
-            time.sleep(0.1)
+           time.sleep(2)
 except KeyboardInterrupt:
     print("Exiting...")
     sensor_updater.stop()
