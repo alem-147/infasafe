@@ -1,0 +1,300 @@
+Traceback (most recent call last):
+  File "A_2_RGB.py", line 119, in <module>
+    rgb_camera = RGB_Camera()
+  File "A_2_RGB.py", line 74, in __init__
+    self.net = poseNet.PoseNet(POSENET_MODEL)
+AttributeError: type object 'jetson.inference.poseNet' has no attribute 'PoseNet'
+Exiting... 
+
+sudo python3 A_2_RGB.py 
+jetson.utils -- compiled without NumPy array conversion support (warning)
+jetson.utils -- if you wish to have support for converting NumPy arrays,
+jetson.utils -- first run 'sudo apt-get install python-numpy python3-numpy'
+
+poseNet -- loading pose estimation model from:
+        -- model        networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx
+        -- topology     networks/Pose-DenseNet121-Body/human_pose.json
+        -- colors       networks/Pose-DenseNet121-Body/colors.txt
+        -- input_blob   'input'
+        -- output_cmap  'cmap'
+        -- output_paf   'paf'
+        -- threshold    0.150000
+        -- batch_size   1
+
+[TRT]    topology -- keypoint 0  nose
+[TRT]    topology -- keypoint 1  left_eye
+[TRT]    topology -- keypoint 2  right_eye
+[TRT]    topology -- keypoint 3  left_ear
+[TRT]    topology -- keypoint 4  right_ear
+[TRT]    topology -- keypoint 5  left_shoulder
+[TRT]    topology -- keypoint 6  right_shoulder
+[TRT]    topology -- keypoint 7  left_elbow
+[TRT]    topology -- keypoint 8  right_elbow
+[TRT]    topology -- keypoint 9  left_wrist
+[TRT]    topology -- keypoint 10  right_wrist
+[TRT]    topology -- keypoint 11  left_hip
+[TRT]    topology -- keypoint 12  right_hip
+[TRT]    topology -- keypoint 13  left_knee
+[TRT]    topology -- keypoint 14  right_knee
+[TRT]    topology -- keypoint 15  left_ankle
+[TRT]    topology -- keypoint 16  right_ankle
+[TRT]    topology -- keypoint 17  neck
+[TRT]    topology -- skeleton link 0  16 14
+[TRT]    topology -- skeleton link 1  14 12
+[TRT]    topology -- skeleton link 2  17 15
+[TRT]    topology -- skeleton link 3  15 13
+[TRT]    topology -- skeleton link 4  12 13
+[TRT]    topology -- skeleton link 5  6 8
+[TRT]    topology -- skeleton link 6  7 9
+[TRT]    topology -- skeleton link 7  8 10
+[TRT]    topology -- skeleton link 8  9 11
+[TRT]    topology -- skeleton link 9  2 3
+[TRT]    topology -- skeleton link 10  1 2
+[TRT]    topology -- skeleton link 11  1 3
+[TRT]    topology -- skeleton link 12  2 4
+[TRT]    topology -- skeleton link 13  3 5
+[TRT]    topology -- skeleton link 14  4 6
+[TRT]    topology -- skeleton link 15  5 7
+[TRT]    topology -- skeleton link 16  18 1
+[TRT]    topology -- skeleton link 17  18 6
+[TRT]    topology -- skeleton link 18  18 7
+[TRT]    topology -- skeleton link 19  18 12
+[TRT]    topology -- skeleton link 20  18 13
+[TRT]    poseNet -- keypoint 00 'nose'  color 255 0 85 255
+[TRT]    poseNet -- keypoint 01 'left_eye'  color 255 0 0 255
+[TRT]    poseNet -- keypoint 02 'right_eye'  color 255 85 0 255
+[TRT]    poseNet -- keypoint 03 'left_ear'  color 255 170 0 255
+[TRT]    poseNet -- keypoint 04 'right_ear'  color 255 255 0 255
+[TRT]    poseNet -- keypoint 05 'left_shoulder'  color 170 255 0 255
+[TRT]    poseNet -- keypoint 06 'right_shoulder'  color 85 255 0 255
+[TRT]    poseNet -- keypoint 07 'left_elbow'  color 0 255 0 255
+[TRT]    poseNet -- keypoint 08 'right_elbow'  color 0 255 85 255
+[TRT]    poseNet -- keypoint 09 'left_wrist'  color 0 255 170 255
+[TRT]    poseNet -- keypoint 10 'right_wrist'  color 0 255 255 255
+[TRT]    poseNet -- keypoint 11 'left_hip'  color 0 170 255 255
+[TRT]    poseNet -- keypoint 12 'right_hip'  color 0 85 255 255
+[TRT]    poseNet -- keypoint 13 'left_knee'  color 0 0 255 255
+[TRT]    poseNet -- keypoint 14 'right_knee'  color 255 0 170 255
+[TRT]    poseNet -- keypoint 15 'left_ankle'  color 170 0 255 255
+[TRT]    poseNet -- keypoint 16 'right_ankle'  color 255 0 255 255
+[TRT]    poseNet -- keypoint 17 'neck'  color 85 0 255 255
+[TRT]    poseNet -- loaded 18 class colors
+21.781539916992188 44.73752975463867
+[TRT]    TensorRT version 8.2.1
+[TRT]    loading NVIDIA plugins...
+[TRT]    Registered plugin creator - ::GridAnchor_TRT version 1
+[TRT]    Registered plugin creator - ::GridAnchorRect_TRT version 1
+[TRT]    Registered plugin creator - ::NMS_TRT version 1
+[TRT]    Registered plugin creator - ::Reorg_TRT version 1
+[TRT]    Registered plugin creator - ::Region_TRT version 1
+[TRT]    Registered plugin creator - ::Clip_TRT version 1
+[TRT]    Registered plugin creator - ::LReLU_TRT version 1
+[TRT]    Registered plugin creator - ::PriorBox_TRT version 1
+[TRT]    Registered plugin creator - ::Normalize_TRT version 1
+[TRT]    Registered plugin creator - ::ScatterND version 1
+[TRT]    Registered plugin creator - ::RPROI_TRT version 1
+[TRT]    Registered plugin creator - ::BatchedNMS_TRT version 1
+[TRT]    Registered plugin creator - ::BatchedNMSDynamic_TRT version 1
+[TRT]    Could not register plugin creator -  ::FlattenConcat_TRT version 1
+[TRT]    Registered plugin creator - ::CropAndResize version 1
+[TRT]    Registered plugin creator - ::DetectionLayer_TRT version 1
+[TRT]    Registered plugin creator - ::EfficientNMS_TRT version 1
+[TRT]    Registered plugin creator - ::EfficientNMS_ONNX_TRT version 1
+[TRT]    Registered plugin creator - ::EfficientNMS_TFTRT_TRT version 1
+[TRT]    Registered plugin creator - ::Proposal version 1
+[TRT]    Registered plugin creator - ::ProposalLayer_TRT version 1
+[TRT]    Registered plugin creator - ::PyramidROIAlign_TRT version 1
+[TRT]    Registered plugin creator - ::ResizeNearest_TRT version 1
+[TRT]    Registered plugin creator - ::Split version 1
+[TRT]    Registered plugin creator - ::SpecialSlice_TRT version 1
+[TRT]    Registered plugin creator - ::InstanceNormalization_TRT version 1
+[TRT]    detected model format - ONNX  (extension '.onnx')
+[TRT]    desired precision specified for GPU: FASTEST
+[TRT]    requested fasted precision for device GPU without providing valid calibrator, disabling INT8
+21.78630828857422 44.78750228881836
+[TRT]    [MemUsageChange] Init CUDA: CPU +225, GPU +0, now: CPU 252, GPU 3534 (MiB)
+[TRT]    [MemUsageSnapshot] Begin constructing builder kernel library: CPU 252 MiB, GPU 3563 MiB
+[TRT]    [MemUsageSnapshot] End constructing builder kernel library: CPU 282 MiB, GPU 3593 MiB
+[TRT]    native precisions detected for GPU:  FP32, FP16
+[TRT]    selecting fastest native precision for GPU:  FP16
+[TRT]    found engine cache file /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx.1.1.8201.GPU.FP16.engine
+[TRT]    found model checksum /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx.sha256sum
+[TRT]    echo "$(cat /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx.sha256sum) /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx" | sha256sum --check --status
+21.788406372070312 44.817447662353516
+[TRT]    model matched checksum /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx.sha256sum
+[TRT]    loading network plan from engine cache... /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx.1.1.8201.GPU.FP16.engine
+[TRT]    device GPU, loaded /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx
+[TRT]    [MemUsageChange] Init CUDA: CPU +0, GPU +0, now: CPU 305, GPU 3777 (MiB)
+[TRT]    Loaded engine size: 52 MiB
+21.802902221679688 44.8481559753418
+[TRT]    Using cublas as a tactic source
+[TRT]    [MemUsageChange] Init cuBLAS/cuBLASLt: CPU +158, GPU +54, now: CPU 464, GPU 3831 (MiB)
+[TRT]    Using cuDNN as a tactic source
+21.790695190429688 44.747066497802734
+21.791648864746094 44.733619689941406
+[TRT]    [MemUsageChange] Init cuDNN: CPU +241, GPU +58, now: CPU 705, GPU 3889 (MiB)
+[TRT]    Deserialization required 5568448 microseconds.
+[TRT]    [MemUsageChange] TensorRT-managed allocation in engine deserialization: CPU +0, GPU +51, now: CPU 0, GPU 51 (MiB)
+[TRT]    Using cublas as a tactic source
+[TRT]    [MemUsageChange] Init cuBLAS/cuBLASLt: CPU +1, GPU +0, now: CPU 705, GPU 3889 (MiB)
+[TRT]    Using cuDNN as a tactic source
+[TRT]    [MemUsageChange] Init cuDNN: CPU +0, GPU +0, now: CPU 705, GPU 3889 (MiB)
+[TRT]    Total per-runner device persistent memory is 25316352
+[TRT]    Total per-runner host persistent memory is 217536
+[TRT]    Allocated activation device memory of size 12853248
+[TRT]    [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +36, now: CPU 0, GPU 87 (MiB)
+[TRT]    
+[TRT]    CUDA engine context initialized on device GPU:
+[TRT]       -- layers       743
+[TRT]       -- maxBatchSize 1
+[TRT]       -- deviceMemory 12853248
+[TRT]       -- bindings     3
+[TRT]       binding 0
+                -- index   0
+                -- name    'input'
+                -- type    FP32
+                -- in/out  INPUT
+                -- # dims  4
+                -- dim #0  1
+                -- dim #1  3
+                -- dim #2  256
+                -- dim #3  256
+[TRT]       binding 1
+                -- index   1
+                -- name    'cmap'
+                -- type    FP32
+                -- in/out  OUTPUT
+                -- # dims  4
+                -- dim #0  1
+                -- dim #1  18
+                -- dim #2  64
+                -- dim #3  64
+[TRT]       binding 2
+                -- index   2
+                -- name    'paf'
+                -- type    FP32
+                -- in/out  OUTPUT
+                -- # dims  4
+                -- dim #0  1
+                -- dim #1  42
+                -- dim #2  64
+                -- dim #3  64
+[TRT]    
+[TRT]    binding to input 0 input  binding index:  0
+[TRT]    binding to input 0 input  dims (b=1 c=3 h=256 w=256) size=786432
+[TRT]    binding to output 0 cmap  binding index:  1
+[TRT]    binding to output 0 cmap  dims (b=1 c=18 h=64 w=64) size=294912
+[TRT]    binding to output 1 paf  binding index:  2
+[TRT]    binding to output 1 paf  dims (b=1 c=42 h=64 w=64) size=688128
+[TRT]    
+[TRT]    device GPU, /usr/local/bin/networks/Pose-DenseNet121-Body/pose_densenet121_body.onnx initialized.
+[OpenGL] glDisplay -- X screen 0 resolution:  2560x1440
+[OpenGL] glDisplay -- X window resolution:    2560x1440
+[OpenGL] glDisplay -- display device initialized (2560x1440)
+[video]  created glDisplay from display://0
+------------------------------------------------
+glDisplay video options:
+------------------------------------------------
+  -- URI: display://0
+     - protocol:  display
+     - location:  0
+  -- deviceType: display
+  -- ioType:     output
+  -- width:      2560
+  -- height:     1440
+  -- frameRate:  0
+  -- numBuffers: 4
+  -- zeroCopy:   true
+------------------------------------------------
+[gstreamer] initialized gstreamer, version 1.14.5.0
+[gstreamer] gstCamera -- attempting to create device csi://0
+[gstreamer] gstCamera pipeline string:
+[gstreamer] nvarguscamerasrc sensor-id=0 ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, framerate=30/1, format=(string)NV12 ! nvvidconv flip-method=2 ! video/x-raw(memory:NVMM) ! appsink name=mysink
+[gstreamer] gstCamera successfully created device csi://0
+[video]  created gstCamera from csi://0
+------------------------------------------------
+gstCamera video options:
+------------------------------------------------
+  -- URI: csi://0
+     - protocol:  csi
+     - location:  0
+  -- deviceType: csi
+  -- ioType:     input
+  -- width:      1280
+  -- height:     720
+  -- frameRate:  30
+  -- numBuffers: 4
+  -- zeroCopy:   true
+  -- flipMethod: rotate-180
+------------------------------------------------
+[gstreamer] opening gstCamera for streaming, transitioning pipeline to GST_STATE_PLAYING
+[gstreamer] gstreamer changed state from NULL to READY ==> mysink
+[gstreamer] gstreamer changed state from NULL to READY ==> capsfilter1
+[gstreamer] gstreamer changed state from NULL to READY ==> nvvconv0
+[gstreamer] gstreamer changed state from NULL to READY ==> capsfilter0
+[gstreamer] gstreamer changed state from NULL to READY ==> nvarguscamerasrc0
+[gstreamer] gstreamer changed state from NULL to READY ==> pipeline0
+[gstreamer] gstreamer changed state from READY to PAUSED ==> capsfilter1
+[gstreamer] gstreamer changed state from READY to PAUSED ==> nvvconv0
+[gstreamer] gstreamer changed state from READY to PAUSED ==> capsfilter0
+[gstreamer] gstreamer stream status CREATE ==> src
+[gstreamer] gstreamer changed state from READY to PAUSED ==> nvarguscamerasrc0
+[gstreamer] gstreamer changed state from READY to PAUSED ==> pipeline0
+[gstreamer] gstreamer message new-clock ==> pipeline0
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> capsfilter1
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> nvvconv0
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> capsfilter0
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> nvarguscamerasrc0
+[gstreamer] gstreamer stream status ENTER ==> src
+[gstreamer] gstreamer message stream-start ==> pipeline0
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3264 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3264 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 120.000005 fps Duration = 8333333 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0 
+   Camera mode  = 5 
+   Output Stream W = 1280 H = 720 
+   seconds to Run    = 0 
+   Frame Rate = 120.000005 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[gstreamer] gstCamera -- onPreroll
+[gstreamer] gstBufferManager recieve caps:  video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, format=(string)NV12, framerate=(fraction)30/1
+[gstreamer] gstBufferManager -- recieved first frame, codec=raw format=nv12 width=1280 height=720 size=1008
+[gstreamer] gstBufferManager -- recieved NVMM memory
+[cuda]   allocated 4 ring buffers (8 bytes each, 32 bytes total)
+[gstreamer] gstreamer changed state from READY to PAUSED ==> mysink
+[gstreamer] gstreamer message async-done ==> pipeline0
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> mysink
+[gstreamer] gstreamer changed state from PAUSED to PLAYING ==> pipeline0
+[cuda]   allocated 4 ring buffers (2764800 bytes each, 11059200 bytes total)
+ERROR:root:An error occurred in RGB_Camera: 'draw_threshold' is an invalid keyword argument for this function
+INFO:root:RGB_Camera stopped.
+[gstreamer] gstCamera -- stopping pipeline, transitioning to GST_STATE_NULL
+GST_ARGUS: Cleaning up
+CONSUMER: Done Success
+GST_ARGUS: Done Success
+[gstreamer] gstCamera -- pipeline stopped
+21.78936004638672 44.66133117675781
+21.782493591308594 45.05586624145508
+21.78974151611328 45.006752014160156
+21.782493591308594 44.96192932128906
+21.793746948242188 45.052146911621094
+^CINFO:root:Interrupt received, stopping threads.
+INFO:root:RGB_Camera stopped.
+Exiting... 
+Cleaning up pins
+

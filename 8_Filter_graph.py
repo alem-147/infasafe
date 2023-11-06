@@ -60,14 +60,18 @@ class RespiratoryRateCalculator:
         self.normalized_buffer = normalized_data.tolist()
         
         b, a = scipy.signal.butter(2, [0.1, 0.85], btype='band')
-        filtered_data = scipy.signal.lfilter(b, a, normalized_data)
+        #zi = scipy.signal.lfilter_zi(b, a)
+        #z1 , _ = scipy.signal.lfilter(b, a, normalized_data, zi=zi*normalized_data[0])
+        #z2 , _ = scipy.signal.lfilter(b, a, z1, zi=zi*z1[0])
+        filtered_data = scipy.signal.filtfilt(b, a, normalized_data)
         self.filtered_buffer= filtered_data.tolist()
 
         # Multiply the data by a Hamming window
         window = scipy.signal.hamming(len(filtered_data), sym=0)
         filtered_data *= window
         self.test_buffer= filtered_data.tolist()
-        
+        #Hamming_Convolve = scipy.signal.convolve(filtered_data, window, mode='same') / sum(window)
+        #self.test_buffer= Hamming_Convolve.tolist()
 
 
         # FFT transform and modulus squared
@@ -75,7 +79,7 @@ class RespiratoryRateCalculator:
         fft_magnitude = np.absolute(fft)
         fft_power = np.square(fft_magnitude)
         
-        fft_power[0] = 0
+        #fft_power[0] = 0
 
         # Frequency samples
         time_duration = (self.timestamps_buffer[-1] - self.timestamps_buffer[0]).total_seconds()
@@ -83,7 +87,8 @@ class RespiratoryRateCalculator:
         frequencies = np.fft.fftfreq(len(data), d=sample_interval)
 
         # Find the index of the maximum FFT value and get the respiration frequency
-        max_idx = np.argmax(fft_power[1:]) + 1
+        #max_idx = np.argmax(fft_power[1:]) + 1
+        max_idx = np.argmax(fft_power)
         breaths_per_sec = frequencies[max_idx]
         breaths_per_min = breaths_per_sec * 60
 
@@ -121,7 +126,7 @@ class RespiratoryRateCalculator:
         plt.title('Normalized Data Over Time')
         plt.legend()
         plt.subplot(4, 1, 3)  # One subplot
-        plt.plot(timestamps_to_plot, self.filtered_buffer, label='BW Filtered Data')
+        plt.plot(timestamps_to_plot, self.filtered_buffer, label='Butterworth Filtered Data')
         plt.xlabel('Time')
         plt.ylabel('Temperature Value')
         plt.title('Filtered Temperature Data Over Time')

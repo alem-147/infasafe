@@ -17,7 +17,7 @@ q = queue.Queue()
 def rgb_camera_thread():
 
     # Load the pose estimation model
-    net = poseNet('resnet18-body', threshold=0.15)
+    net = poseNet('densenet121-body', threshold=0.15)
 
     # Initialize the camera or video input source
     cam = jetson_utils.videoSource("csi://0")
