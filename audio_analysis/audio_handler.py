@@ -3,6 +3,7 @@ import pyaudio
 import time
 import librosa
 import wave
+import joblib
 
 '''
 Audio Handler class
@@ -20,7 +21,7 @@ args:
             -> this may be able to be resolved with a higher quality mic
 '''
 class AudioHandler(object):
-    def __init__(self, duration, svm, knn, debug=False):
+    def __init__(self, duration, svm, knn, debug=False, eventmonitor=None):
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 2
         self.RATE = 8000
@@ -35,6 +36,7 @@ class AudioHandler(object):
         self.stream = None
         self.svm = svm
         self.knn = knn
+        self.eventmonitor = eventmonitor
 
     def start(self):
         self.p = pyaudio.PyAudio()
@@ -53,21 +55,24 @@ class AudioHandler(object):
         mfccs = librosa.feature.mfcc(y=audio_array.astype('float32'), 
                                           sr=self.RATE, n_mfcc=self.n_mfcc,dtype=np.float32).mean(axis=1)
         prediction = self.svm.predict(mfccs.reshape(1, -1))
+        print('prediction',prediction,'end mfccs',mfccs)
         if prediction == 'positive':
             cry_classification = self.knn.predict(mfccs.reshape(1, -1))
-            # print('cry guess', cry_classification)
-        # print('prediction',prediction,'end mfccs',mfccs)
+            print('cry guess', cry_classification)
+
         self.frame_to_proc = []
 
-        with wave.open('debug_out.wav', 'wb') as wf:
-            wf.setnchannels(self.CHANNELS)
-            wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
-            wf.setframerate(self.RATE)
-            wf.writeframes(b''.join(self.audio_buffer))
+        # with wave.open('debug_out.wav', 'wb') as wf:
+        #     wf.setnchannels(self.CHANNELS)
+        #     wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
+        #     wf.setframerate(self.RATE)
+        #     wf.writeframes(b''.join(self.audio_buffer))
+        self.audio_buffer = []
         self.stream.close()
         self.p.terminate()
+        self.p = None
+        self.stream = None
 
-    #TODO - increase the buffer to 5 sec
     def callback(self, in_data, frame_count, time_info, flag):
         self.frame_to_proc.append(in_data)
         # print('processing')
@@ -78,22 +83,27 @@ class AudioHandler(object):
             mfccs = librosa.feature.mfcc(y=audio_array.astype('float32'), 
                                               sr=self.RATE, n_mfcc=self.n_mfcc,dtype=np.float32).mean(axis=1)
             prediction = self.svm.predict(mfccs.reshape(1, -1))
-            # print('prediction', prediction,'clip mfccs',mfccs)
+            print('prediction', prediction,'clip mfccs',mfccs)
             if prediction == 'positive':
                 cry_classification = self.knn.predict(mfccs.reshape(1, -1))
-                # print('cry guess', cry_classification)
+                print('cry guess', cry_classification)
+                if self.eventmonitor:
+                    print('cry event')
+                    self.eventmonitor.set_event('cry_event')
             self.frame_to_proc = []
         return None, pyaudio.paContinue
 
     def mainloop(self):
         while (self.stream.is_active() and (time.time() - self.starttime) < self.DURATION): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
-            time.sleep(.1)
+            time.sleep(1.0)
 
 
-
-#for now this works but will need to add some filtering to get out the noise
+# TODO
+'''
+add event handler
+'''
 class DemoAudioHandler(object):
-    def __init__(self, duration, svm, knn, test_wav, debug=False):
+    def __init__(self, duration, svm, knn, test_wav, debug=False, eventmonitor=None):
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 8000
@@ -109,6 +119,8 @@ class DemoAudioHandler(object):
         self.stream = None
         self.wf = wave.open(test_wav, 'rb')
         self.i = 0
+        self.indetification_stamps = []
+        self.eventmonitor = eventmonitor
 
     def start(self):
         self.p = pyaudio.PyAudio()
@@ -121,8 +133,7 @@ class DemoAudioHandler(object):
                                   channels=self.CHANNELS,
                                   rate=self.RATE,
                                   input=True,
-                                  output=True,
-                                  
+                                  output=False,
                                   stream_callback=self.callback,
                                   frames_per_buffer=self.CHUNK)
 
@@ -132,43 +143,49 @@ class DemoAudioHandler(object):
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
         self.mfccs = librosa.feature.mfcc(y=audio_array.astype('float32'), 
                                           sr=self.RATE, n_mfcc=self.n_mfcc,dtype=np.float32).mean(axis=1)
-        print('end mfccs',self.mfccs)
+        # print('end mfccs',self.mfccs)
+        prediction = svm.predict(self.mfccs.reshape(1, -1))
+        print('prediction',prediction)
+        if prediction == 'positive':
+            cry_classification = knn.predict(self.mfccs.reshape(1, -1))
+            print('cry guess', cry_classification)
+            
+            if self.eventmonitor:
+                print('cry event')
+                self.eventmonitor.set_event('cry_event')
         self.frame_to_proc = []
-
-        with wave.open('debug_out.wav', 'wb') as wf:
-            wf.setnchannels(self.CHANNELS)
-            wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
-            wf.setframerate(self.RATE)
-            wf.writeframes(b''.join(self.audio_buffer))
         self.stream.close()
         self.p.terminate()
 
     #TODO - increase the buffer to 5 sec
     def callback(self, in_data, frame_count, time_info, flag):
-        # self.frame_to_proc.append(in_data)
         self.frame_to_proc.append(self.wf.readframes(frame_count))
-        # print('processing')
         if len(self.frame_to_proc) * self.CHUNK  >= self.RECORD_SECONDS * self.RATE:
-            # print(self.frame_to_proc)
             self.audio_buffer.extend(self.frame_to_proc)
             audio_data = b''.join(self.frame_to_proc)
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
             self.mfccs = librosa.feature.mfcc(y=audio_array.astype('float32'), 
-                                              sr=8000, n_mfcc=10,dtype=np.float32).mean(axis=1)
+                                              sr=self.RATE, n_mfcc=10,dtype=np.float32).mean(axis=1)
             prediction = svm.predict(self.mfccs.reshape(1, -1))
-            with wave.open(f"streamfile_{self.i}.wav", 'wb') as wf:
-                wf.setnchannels(self.CHANNELS)
-                wf.setsampwidth(self.p.get_sample_size(self.FORMAT))
-                wf.setframerate(self.RATE)
-                wf.writeframes(audio_data)
-            self.i += 1
-            print('prediction',prediction,'clip mfccs',self.mfccs)
+            print('prediction',prediction)
             if prediction == 'positive':
                 cry_classification = knn.predict(self.mfccs.reshape(1, -1))
+                self.indetification_stamps.append((time.time, cry_classification))
                 print('cry guess', cry_classification)
+                if self.eventmonitor:
+                    print('cry event')
+                    self.eventmonitor.set_event('cry_event')
             self.frame_to_proc = []
         return None, pyaudio.paContinue
 
     def mainloop(self):
         while (self.stream.is_active() and (time.time() - self.starttime) < self.DURATION): # if using button you can set self.stream to 0 (self.stream = 0), otherwise you can use a stop condition
-            time.sleep(.1)
+            time.sleep(1.0)
+
+if __name__ == "__main__":
+    knn = joblib.load('live_knn.pkl')
+    svm = joblib.load('live_svm.pkl')
+    audio = DemoAudioHandler(60, svm, knn, './data/test/sounds.wav')
+    audio.start()    # open the the stream
+    audio.mainloop()  
+    audio.stop()
