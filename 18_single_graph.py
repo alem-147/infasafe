@@ -37,48 +37,54 @@ plot_queue = queue.Queue()
 health_plot_queue = queue.Queue()
 
 class HealthMetricsCalculator:
-    def __init__(self, buffer_size=300):
+    def __init__(self, buffer_size=100, fever_threshold=93.0, high_fever_threshold=96.5):
         self.buffer_size = buffer_size
         self.temperature_buffer = []
         self.timestamp_buffer = []
         self.max_temperature = None  # Initialize with None, will be set when values are added
         self.min_temperature = None  # Initialize with None, will be set when values are added
+        self.fever_threshold = fever_threshold
+        self.high_fever_threshold = high_fever_threshold
+        self.high_fever_event = threading.Event()  # Event flag for critical fever
+        self.fever_event = threading.Event()  # Event flag for fever
         
         
     def add_value(self, value):
         timestamp = datetime.datetime.now()
-        value = ktof(value)
+        bodyTemp = ktof(value)
         if len(self.temperature_buffer) >= self.buffer_size:
             self.temperature_buffer.pop(0)
             self.timestamp_buffer.pop(0)  # Remove oldest data point
-        self.temperature_buffer.append(value)
+        self.temperature_buffer.append(bodyTemp)
         self.timestamp_buffer.append(timestamp)
+        #print(f"New body temperature: {bodyTemp}")
+        #print(f"Current max_temperature: {self.max_temperature}")
         
         # Update the max and min temperatures
-        self.max_temperature = max(self.temperature_buffer)
-        self.min_temperature = min(self.temperature_buffer)
+        if self.max_temperature is None or bodyTemp > self.max_temperature:
+            self.max_temperature = bodyTemp
+        if self.min_temperature is None or bodyTemp < self.min_temperature:
+            self.min_temperature = bodyTemp
         
-    def plot_data(self):
-        plt.figure(figsize=(10, 5))  # Set the figure size
-        plt.plot_date(self.timestamp_buffer, self.temperature_buffer, '-', label='Temperature')
-        
-        max_temp_index = self.temperature_buffer.index(self.max_temperature)
-        min_temp_index = self.temperature_buffer.index(self.min_temperature)
-        
-        plt.plot_date(self.timestamp_buffer[max_temp_index], self.max_temperature, 'ro', label='Max Body Temp')
-        plt.plot_date(self.timestamp_buffer[min_temp_index], self.min_temperature, 'bo', label='Min Body Temp')
-        
-        plt.title('Temperature Data Over Time')
-        plt.xlabel('Time')
-        plt.ylabel('Temperature (°F)')
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
-        
+        if bodyTemp > self.high_fever_threshold:
+                self.high_fever_event.set()
+        elif bodyTemp > self.fever_threshold:
+                self.fever_event.set()
 
+        #print(f"Updated max_temperature: {self.max_temperature}")
+
+        
+    def export_data(self):
+        # Export the data as a dictionary
+        data = {
+            'timestamps': self.timestamp_buffer,
+            'temperatures': self.temperature_buffer,
+        }
+        return data
+        
 
 class RespiratoryRateCalculator:
-    def __init__(self, buffer_size=270, start_size=120):
+    def __init__(self, health_metrics_calculator, buffer_size=270, start_size=120):
         self.buffer_size = buffer_size
         self.start_size = start_size
         self.values_buffer = []
@@ -88,6 +94,7 @@ class RespiratoryRateCalculator:
         self.timestamps_rr_buffer = []
         self.fft_results_power = [] # Store FFT power results
         self.fft_frequencies = []  # Store FFT frequencies
+        self.calculator = health_metrics_calculator
 
     def add_value(self, value):
         timestamp = datetime.datetime.now()
@@ -154,7 +161,7 @@ class RespiratoryRateCalculator:
         self.values_buffer = []
         self.filtered_buffer = []  # Clear the filtered data
         self.respiratory_rates = []
-        self.rr_timestamps_buffer = []
+        self.timestamps_rr_buffer = []
         self.fft_results_power = []
         self.fft_frequencies = []  # Store FFT frequencies
 
@@ -164,15 +171,16 @@ class RespiratoryRateCalculator:
         if len(self.timestamps_rr_buffer) != len(self.respiratory_rates):
             print(f"Cannot plot data. Lengths do not match: timestamps ({len(self.timestamps_buffer)}) vs respiratory rates ({len(self.respiratory_rates)})")
             return  # Exit the function if lengths do not match
-        
+
         fft_power = self.fft_results_power[-1]
         frequencies = self.fft_frequencies[-1]
-        
+
+
         plt.figure(figsize=(12, 8))
         plt.subplot(5, 1, 1)  # One subplot
         plt.plot(self.timestamps_buffer, self.values_buffer, label='Raw Data')
         plt.xlabel('Time')
-        plt.ylabel('Temperature Value')
+        plt.ylabel('Raw Temperature Value')
         plt.title('Raw Temperature Data Over Time')
         plt.legend()
         plt.subplot(5, 1, 2)  # One subplot
@@ -193,17 +201,55 @@ class RespiratoryRateCalculator:
         plt.ylabel('Respiration Rate Value')
         plt.title('Respiration Rate Data Over Time')
         plt.legend()
+        
+        exported_body_data = self.calculator.export_data()
+        if exported_body_data is not None:    
+            body_temp_timestamps = exported_body_data['timestamps']
+            body_temperatures = exported_body_data['temperatures']
+            
+            max_temperature = max(body_temperatures)
+            min_temperature = min(body_temperatures)
+            max_temp_index = body_temperatures.index(max_temperature)
+            min_temp_index = body_temperatures.index(min_temperature)
+            
+            plt.subplot(5, 1, 5)  # One subplot
+            plt.plot(body_temp_timestamps, body_temperatures, label='Temperature Data')
+            
+            # Plot max temperature
+            plt.plot(body_temp_timestamps[max_temp_index], max_temperature, 'ro', label='Max Temperature')
+            plt.annotate(f'Max: {max_temperature}°F', 
+                         (body_temp_timestamps[max_temp_index], max_temperature), 
+                         textcoords="offset points", 
+                         xytext=(0,10), 
+                         ha='center')
+
+            # Plot min temperature
+            plt.plot(body_temp_timestamps[min_temp_index], min_temperature, 'bo', label='Min Temperature')
+            plt.annotate(f'Min: {min_temperature}°F', 
+                         (body_temp_timestamps[min_temp_index], min_temperature), 
+                         textcoords="offset points", 
+                         xytext=(0,-15), 
+                         ha='center')
+
+            plt.xlabel('Time')
+            plt.ylabel('Temperature (°F)')
+            plt.title('Body Temperature Data Over Time')
+            plt.legend()
+            
         plt.tight_layout()
         plt.show()
 
+
 # Sensor Class to update temperature and humidity values
 class SensorUpdater:
-    def __init__(self, sensor, update_interval, high_room_temp_threshold):
+    def __init__(self, sensor, update_interval, high_room_temp_threshold, high_room_rh_threshold):
         self.sensor = sensor
         self.running = True
         self.update_interval = update_interval
         self.high_room_temp_threshold = high_room_temp_threshold  # High temperature threshold
+        self.high_room_rh_threshold = high_room_rh_threshold  # High temperature threshold
         self.high_room_temp_event = threading.Event()  # Event flag for high temperature
+        self.high_room_rh_event = threading.Event()  # Event flag for high temperature
 
 
     def update_sensor_values(self):
@@ -217,6 +263,8 @@ class SensorUpdater:
             # Check if the temperature exceeds the threshold and set the event if it does
             if current_temperature > self.high_room_temp_threshold:
                 self.high_room_temp_event.set()
+            if current_humidity > self.high_room_rh_threshold:
+                self.high_room_rh_event.set()
 
             time.sleep(self.update_interval)
 
@@ -431,7 +479,8 @@ def ir_camera_thread():
                     event_monitor.set_event(out_of_bounds_event_name)
                     # ... code to handle out of bounds ...
                     continue  # Skip further processing for this keypoint
-
+              else:
+                  rr_calculator.reset()
               if leye is not None and reye is not None:
                   # Combined actions for both eyes
                   cex1 = int(max(leye.x,reye.x)-130)
@@ -454,7 +503,7 @@ def ir_camera_thread():
                   ley2 = int(leye.y-50)
                   le_data = data[ley2:ley1, lex2:lex1]
                   leMaxVal = np.max(le_data)
-                  health_calc.add_value(leMaxVal)
+                  health_calc.add_value(ktof(leMaxVal))
                   health_plot_queue.put((health_calc.temperature_buffer))                  
                   pass
               elif reye is not None:
@@ -468,7 +517,7 @@ def ir_camera_thread():
                   rey2 = int(reye.y-50)
                   re_data = data[rey2:rey1, rex2:rex1]
                   reMaxVal = np.max(re_data)
-                  health_calc.add_value(reMaxVal)
+                  health_calc.add_value(ktof(reMaxVal))
                   health_plot_queue.put((health_calc.temperature_buffer))
                   pass
               else:
@@ -538,68 +587,97 @@ class EventMonitor:
         """Stop the monitoring loop."""
         self.running = False
 
-
-# Start the RGB/IR threads
-
-event_monitor = EventMonitor()
-
-# Create an instance of the RespiratoryRateCalculator
-rr_calculator = RespiratoryRateCalculator()
-health_calc = HealthMetricsCalculator()
-
-sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_room_temp_threshold=23)
-
-# Register events with the EventMonitor
-high_room_temp_event_name = 'High Room Temperature Event'
-event_monitor.register_event(high_room_temp_event_name)
-
-out_of_bounds_event_name = 'ROI Out of Bounds Event'
-event_monitor.register_event(out_of_bounds_event_name)
-
-no_nose_event_name = 'No Nose Event'
-event_monitor.register_event(no_nose_event_name)
-
-ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
-sensor_thread = threading.Thread(target=sensor_updater.update_sensor_values, daemon=True)
-rgb_thread = threading.Thread(target=rgb_camera_thread, daemon=True)
-
-monitor_thread = threading.Thread(target=event_monitor.monitor_events, daemon=True)
-monitor_thread.start()
-
-ir_thread.start()
-sensor_thread.start()
-rgb_thread.start()
-
-try:
+def event_processing_thread():
     while True:
-        # Check if there is new data to plot
-        try:
-            # Get data from the queue without blocking
-            health_to_plot = health_plot_queue.get_nowait()
-            #data_to_plot = plot_queue.get_nowait()
-            # Plot the data using the main thread
-            #rr_calculator.plot_data()
-            health_calc.plot_data()
-        except queue.Empty:
-            # No data to plot, can sleep or do other work
-            pass
-            
         if sensor_updater.high_room_temp_event.is_set():
             event_monitor.set_event(high_room_temp_event_name)
             sensor_updater.high_room_temp_event.clear()  # Reset the event
-            
+
+        if sensor_updater.high_room_rh_event.is_set():
+            event_monitor.set_event(high_room_rh_event_name)
+            sensor_updater.high_room_rh_event.clear()  # Reset the event
+
         # Check for out of bounds event
         if event_monitor.events[out_of_bounds_event_name].is_set():
             event_monitor.set_event(out_of_bounds_event_name)
             event_monitor.reset_event(out_of_bounds_event_name)
 
-        # Check for no nose event
+        # Check for unsafe sleeping position event
         if event_monitor.events[no_nose_event_name].is_set():
             event_monitor.set_event(no_nose_event_name)
             event_monitor.reset_event(no_nose_event_name)
-            
+
+        # Check for fever event
+        if health_calc.fever_event.is_set():
+            event_monitor.set_event(fever_event_name)
+            health_calc.fever_event.clear()  # Reset the event
+
+        if health_calc.high_fever_event.is_set():
+            event_monitor.set_event(high_fever_event_name)
+            health_calc.high_fever_event.clear()  # Reset the event
+
         time.sleep(0.1)
-            
+
+
+
+event_monitor = EventMonitor()
+
+# Create a single figure with subplots
+plt.figure(figsize=(12, 8))
+subplot1 = plt.subplot(2, 1, 1)  # Create the first subplot
+
+# Create an instance of the RespiratoryRateCalculator
+health_calc = HealthMetricsCalculator()
+rr_calculator = RespiratoryRateCalculator(health_calc)
+
+
+sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_room_temp_threshold=23, high_room_rh_threshold=40)
+
+# Register events with the EventMonitor
+high_room_temp_event_name = 'High Room Temperature Event'
+event_monitor.register_event(high_room_temp_event_name)
+
+high_room_rh_event_name = 'High Room Relative Humidity Event'
+event_monitor.register_event(high_room_rh_event_name)
+
+out_of_bounds_event_name = 'ROI Out of Bounds Event'
+event_monitor.register_event(out_of_bounds_event_name)
+
+no_nose_event_name = 'Unsafe Sleeping Position Event'
+event_monitor.register_event(no_nose_event_name)
+
+fever_event_name = 'Fever Detected Event'
+event_monitor.register_event(fever_event_name)
+
+high_fever_event_name = 'High Fever Detected Event'
+event_monitor.register_event(high_fever_event_name)
+
+# Start the RGB/IR threads
+ir_thread = threading.Thread(target=ir_camera_thread, daemon=True)
+sensor_thread = threading.Thread(target=sensor_updater.update_sensor_values, daemon=True)
+rgb_thread = threading.Thread(target=rgb_camera_thread, daemon=True)
+monitor_thread = threading.Thread(target=event_monitor.monitor_events, daemon=True)
+event_processing_thread = threading.Thread(target=event_processing_thread, daemon=True)
+
+monitor_thread.start()
+event_processing_thread.start()
+ir_thread.start()
+sensor_thread.start()
+rgb_thread.start()
+
+
+try:
+    while True:
+        # Check if there is new data to plot for rr_calculator
+        try:
+            rr_to_plot = plot_queue.get_nowait()
+            rr_calculator.plot_data()
+        except queue.Empty:
+            pass
+        
+
+        time.sleep(0.1)
+
 except KeyboardInterrupt:
     print("Exiting...")
     sensor_updater.stop()
@@ -608,6 +686,7 @@ except KeyboardInterrupt:
 finally:
     # Wait for threads to finish if necessary
     event_monitor.stop_monitoring()
+    event_processing_thread.join()
     monitor_thread.join()
     ir_thread.join()
     sensor_thread.join()
