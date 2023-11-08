@@ -622,14 +622,9 @@ def event_processing_thread():
 
 event_monitor = EventMonitor()
 
-# Create a single figure with subplots
-plt.figure(figsize=(12, 8))
-subplot1 = plt.subplot(2, 1, 1)  # Create the first subplot
-
 # Create an instance of the RespiratoryRateCalculator
 health_calc = HealthMetricsCalculator()
 rr_calculator = RespiratoryRateCalculator(health_calc)
-
 
 sensor_updater = SensorUpdater(sensor=sensor, update_interval=30, high_room_temp_threshold=23, high_room_rh_threshold=40)
 
@@ -665,18 +660,22 @@ ir_thread.start()
 sensor_thread.start()
 rgb_thread.start()
 
+plot_update_interval = 5  # seconds
 
 try:
+    last_plot_time = time.time()
     while True:
-        # Check if there is new data to plot for rr_calculator
-        try:
-            rr_to_plot = plot_queue.get_nowait()
-            rr_calculator.plot_data()
-        except queue.Empty:
-            pass
-        
+        current_time = time.time()
+        # Update the plot if the interval has passed
+        if current_time - last_plot_time > plot_update_interval:
+            try:
+                rr_to_plot = plot_queue.get_nowait()
+                rr_calculator.plot_data()
+                last_plot_time = current_time
+            except queue.Empty:
+                pass
 
-        time.sleep(0.1)
+        time.sleep(0.1)  # Sleep to prevent this loop from hogging the CPU
 
 except KeyboardInterrupt:
     print("Exiting...")
