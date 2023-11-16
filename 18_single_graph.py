@@ -258,7 +258,7 @@ class SensorUpdater:
             current_temperature = round(self.sensor.temperature, 2)
             current_humidity = round(self.sensor.relative_humidity, 2)
             print("\nTemperature: %0.1f C" % current_temperature)
-            print("Humidity: %0.1f %%" % current_relative_humidity)
+            print("Humidity: %0.1f %%" % current_humidity)
 
             # Check if the temperature exceeds the threshold and set the event if it does
             if current_temperature > self.high_room_temp_threshold:
@@ -435,6 +435,14 @@ def ir_camera_thread():
       ce_data = None 
       le_data = None 
       re_data = None
+      nose_region_in_bounds = False
+      ceye_region_in_bounds = False
+      leye_region_in_bounds = False
+      reye_region_in_bounds = False
+      x_shift = 150
+      y_shift = 70
+      x_width = 30
+      y_height = 20
 
       try:
         while True:
@@ -455,12 +463,12 @@ def ir_camera_thread():
               # Use the keypoints as needed
               if nose is not None:
                   # Perform actions using nose keypoint 
-                  nose_x = int(nose.x-190)
-                  nose_y = int(nose.y-20)
-                  nx1 = int(nose.x-120)
-                  ny1 = int(nose.y-15)
-                  nx2 = int(nose.x-190)
-                  ny2 = int(nose.y-40)
+                  nose_x = int(nose.x-x_shift)
+                  nose_y = int(nose.y+y_shift)
+                  nx1 = int(nose_x+x_width)
+                  ny1 = int(nose_y+x_width)
+                  nx2 = int(nose_x-x_width)
+                  ny2 = int(nose_y)
                   nose_loc = nose_x, nose_y
                   nose_region_in_bounds = is_region_within_boundaries(nx1, ny1, nx2, ny2, IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT)
                   if nose_region_in_bounds:
@@ -483,43 +491,73 @@ def ir_camera_thread():
                   rr_calculator.reset()
               if leye is not None and reye is not None:
                   # Combined actions for both eyes
-                  cex1 = int(max(leye.x,reye.x)-130)
-                  cex2 = int(min(leye.x,reye.x)-210)
-                  cey1 = int(max(leye.y,reye.y)-30)
-                  cey2 = int(min(leye.y,reye.y)-80)
-                  ce_data = data[cey2:cey1, cex2:cex1]
-                  ceMaxVal = np.max(ce_data)
-                  health_calc.add_value(ceMaxVal)
-                  health_plot_queue.put((health_calc.temperature_buffer))
-                  pass
+                  leye_x = int(leye.x-x_shift)
+                  leye_y = int(leye.y+y_shift)
+                  leye_loc = leye_x, leye_y
+                  reye_x = int(reye.x-x_shift)
+                  reye_y = int(reye.y+y_shift)
+                  reye_loc = reye_x, reye_y
+                  cex1 = int(max(leye_x,reye_x)+x_width)
+                  cex2 = int(min(leye_x,reye_x)-x_width)
+                  cey1 = int(max(leye_y,reye_y)+(y_height))
+                  cey2 = int(min(leye_y,reye_y)-(y_height))
+                  ceye_region_in_bounds = is_region_within_boundaries(cex1, cey1, cex2, cey2, IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT)
+                  if ceye_region_in_bounds:
+                      ce_data = data[cey2:cey1, cex2:cex1]
+                      ceMaxVal = np.max(ce_data)
+                      health_calc.add_value(ceMaxVal)
+                      health_plot_queue.put((health_calc.temperature_buffer))
+                      pass
+                  else:
+                    # Set flag or log that the nose region is out of bounds
+                    event_monitor.set_event(out_of_bounds_event_name)
+                    # ... code to handle out of bounds ...
+                    # Skip further processing for this keypoint
+                    continue
               elif leye is not None:
                   # Perform actions using left eye keypoint 
-                  leye_x = int(leye.x-180)
-                  leye_y = int(leye.y-30)
+                  leye_x = int(leye.x-x_shift)
+                  leye_y = int(leye.y+y_shift)
                   leye_loc = leye_x, leye_y
-                  lex1 = int(leye.x-160)
-                  lex2 = int(leye.x-200)
-                  ley1 = int(leye.y-10)
-                  ley2 = int(leye.y-50)
-                  le_data = data[ley2:ley1, lex2:lex1]
-                  leMaxVal = np.max(le_data)
-                  health_calc.add_value(ktof(leMaxVal))
-                  health_plot_queue.put((health_calc.temperature_buffer))                  
-                  pass
+                  lex1 = int(leye_x+(x_width/2))
+                  lex2 = int(leye_x-(x_width/2))
+                  ley1 = int(leye_y+(y_height))
+                  ley2 = int(leye_y-(y_height))
+                  leye_region_in_bounds = is_region_within_boundaries(lex1, ley1, lex2, ley2, IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT)
+                  if leye_region_in_bounds:
+                      le_data = data[ley2:ley1, lex2:lex1]
+                      leMaxVal = np.max(le_data)
+                      health_calc.add_value(ktof(leMaxVal))
+                      health_plot_queue.put((health_calc.temperature_buffer))                  
+                      pass
+                  else:
+                    # Set flag or log that the nose region is out of bounds
+                    event_monitor.set_event(out_of_bounds_event_name)
+                    # ... code to handle out of bounds ...
+                    # Skip further processing for this keypoint
+                    continue
               elif reye is not None:
                   # Perform actions using right eye keypoint 
-                  reye_x = int(reye.x-180)
-                  reye_y = int(reye.y-30)
+                  reye_x = int(reye.x-x_shift)
+                  reye_y = int(reye.y+y_shift)
                   reye_loc = reye_x, reye_y
-                  rex1 = int(reye.x-160)
-                  rex2 = int(reye.x-200)
-                  rey1 = int(reye.y-10)
-                  rey2 = int(reye.y-50)
-                  re_data = data[rey2:rey1, rex2:rex1]
-                  reMaxVal = np.max(re_data)
-                  health_calc.add_value(ktof(reMaxVal))
-                  health_plot_queue.put((health_calc.temperature_buffer))
-                  pass
+                  rex1 = int(reye_x+(x_width/2))
+                  rex2 = int(reye_x-(x_width/2))
+                  rey1 = int(reye_y+(y_height))
+                  rey2 = int(reye_y-(y_height))
+                  reye_region_in_bounds = is_region_within_boundaries(rex1, rey1, rex2, rey2, IR_IMAGE_WIDTH, IR_IMAGE_HEIGHT)
+                  if reye_region_in_bounds:
+                      re_data = data[rey2:rey1, rex2:rex1]
+                      reMaxVal = np.max(re_data)
+                      health_calc.add_value(ktof(reMaxVal))
+                      health_plot_queue.put((health_calc.temperature_buffer))
+                      pass
+                  else:
+                    # Set flag or log that the nose region is out of bounds
+                    event_monitor.set_event(out_of_bounds_event_name)
+                    # ... code to handle out of bounds ...
+                    # Skip further processing for this keypoint
+                    continue
               else:
                   print("no eyes")
            
@@ -529,15 +567,20 @@ def ir_camera_thread():
           img = raw_to_8bit(data)
 
 
-          if roi_data is not None:
+          if nose_region_in_bounds:
+              cv2.circle(img, nose_loc, 5, (0, 255, 0), 5)
               cv2.rectangle(img, (nx2, ny2), (nx1, ny1), (0, 255, 0), 2)  # Green rectangle
               display_temperature(img, avgVal, (nx1,ny1) , (0, 0, 255))
-          if ce_data is not None:
+          if ceye_region_in_bounds:
+              cv2.circle(img, leye_loc, 5, (0, 0, 255), 5)
+              cv2.circle(img, reye_loc, 5, (255, 0, 0), 5)
               cv2.rectangle(img, (cex2, cey2), (cex1, cey1), (255, 0, 255), 2)  # Purple rectangle
               display_temperature(img, ceMaxVal, (cex1,cey1) , (0, 0, 255))
-          if le_data is not None:
+          if leye_region_in_bounds:
+              cv2.circle(img, leye_loc, 5, (0, 0, 255), 5)
               cv2.rectangle(img, (lex2, ley2), (lex1, ley1), (0, 0, 255), 2)  # Red rectangle
-          if re_data is not None:
+          if reye_region_in_bounds:
+             cv2.circle(img, reye_loc, 5, (255, 0, 0), 5)
              cv2.rectangle(img, (rex2, rey2), (rex1, rey1), (255, 0, 0), 2)  # Blue rectangle
 
           cv2.imshow('InfaSafe Thermal', img)
