@@ -1,0 +1,19 @@
+plot_update_interval = 5  # seconds
+
+try:
+    last_plot_time = time.time()
+    while True:
+        current_time = time.time()
+        # Update the plot if the interval has passed
+        if current_time - last_plot_time > plot_update_interval:
+            try:
+                rr_to_plot = plot_queue.get_nowait()
+                rr_calculator.plot_data()
+                last_plot_time = current_time
+            except queue.Empty:
+                pass
+
+        time.sleep(0.1)  # Sleep to prevent this loop from hogging the CPU
+
+except KeyboardInterrupt:
+    print("Exiting...")
