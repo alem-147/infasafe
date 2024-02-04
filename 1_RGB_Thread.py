@@ -17,7 +17,8 @@ def rgb_camera_thread():
     net = poseNet('resnet18-body', threshold=0.15)
 
     # Initialize the camera or video input source
-    cam = jetson_utils.videoSource("csi://0")
+    cam = jetson_utils.videoSource("/dev/video0")
+    #disp = jetson_utils.videoOutput("rtsp://10.0.0.209:5000/live")
     disp = jetson_utils.videoOutput("display://0")
 
     while True:

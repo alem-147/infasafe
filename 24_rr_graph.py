@@ -16,10 +16,11 @@ import datetime
 import scipy.signal
 import matplotlib.pyplot as plt
 
+
 # Global flag to signal thread to stop
 stop_signal = threading.Event()
 
-# Create sensor object, communicating over the board's default I2C bus
+# Create sensor object, communicating over the board's  I2C bus
 i2c = board.I2C()  # uses board.SCL and board.SDA
 sensor = adafruit_ahtx0.AHTx0(i2c)
 
@@ -192,74 +193,7 @@ class RespiratoryRateCalculator:
         self.fft_results_power = []
         self.fft_frequencies = []  # Store FFT frequencies
 
-    def plot_data(self):
-        if len(self.timestamps_rr_buffer) != len(self.respiratory_rates):
-            print(f"Cannot plot data. Lengths do not match: timestamps ({len(self.timestamps_rr_buffer)}) vs respiratory rates ({len(self.respiratory_rates)})")
-            return
-
-        fft_power = self.fft_results_power[-1]
-        frequencies = self.fft_frequencies[-1]
-
-        plt.figure(figsize=(24, 22))
-
-        # Plot 1: Normalized Data and Filtered Data
-        plt.subplot(4, 1, 1)
-        normalized_data = (self.values_buffer - np.mean(self.values_buffer)) / np.std(self.values_buffer)
-        plt.plot(self.timestamps_buffer, normalized_data, label='Normalized Data', alpha=0.7, color='orange', linestyle='-')
-
-        hampel_data = self.hampel_filter(np.array(normalized_data), window_size=50)
-        plt.plot(self.filter_timestamps_buffer, hampel_data, label='Hampel Filtered Data', alpha=0.7, color='blue', linestyle=':')
-
-        plt.plot(self.filter_timestamps_buffer, self.filtered_buffer, label='Butterworth Filtered Data', alpha=0.7, color='green', linestyle='--')
-
-        plt.xlabel('Time')
-        plt.ylabel('Value')
-        plt.title('Data Processing Stages')
-        plt.legend()
-
-        # Plot 2: FFT Power Output
-        plt.subplot(4, 1, 2)
-        plt.plot(frequencies[:len(frequencies)//2], fft_power[:len(fft_power)//2], label='FFT Power Output', color='purple', linestyle='-')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('Power')
-        plt.title('FFT Power of Data')
-        plt.legend()
-
-        # Plot 3: Breathing Data
-        plt.subplot(4, 1, 3)
-        plt.plot(self.timestamps_rr_buffer, self.respiratory_rates, label='Breathing Data', color='red', linestyle='-')
-        plt.xlabel('Time')
-        plt.ylabel('Respiration Rate Value')
-        plt.title('Respiration Rate Data Over Time')
-        plt.legend()
-
-        # Plot 4: Body Temperature Data
-        if self.calculator.export_data() is not None:
-            exported_body_data = self.calculator.export_data()
-            body_temp_timestamps = exported_body_data['timestamps']
-            body_temperatures = exported_body_data['temperatures']
-
-            max_temperature = max(body_temperatures)
-            min_temperature = min(body_temperatures)
-            max_temp_index = body_temperatures.index(max_temperature)
-            min_temp_index = body_temperatures.index(min_temperature)
-
-            plt.subplot(4, 1, 4)
-            plt.plot(body_temp_timestamps, body_temperatures, label='Temperature Data', color='gray', linestyle='-')
-
-            plt.plot(body_temp_timestamps[max_temp_index], max_temperature, 'ro', label='Max Temperature')
-            plt.annotate(f'Max: {max_temperature:.2f}°F', (body_temp_timestamps[max_temp_index], max_temperature), textcoords="offset points", xytext=(0,10), ha='center')
-
-            plt.plot(body_temp_timestamps[min_temp_index], min_temperature, 'bo', label='Min Temperature')
-            plt.annotate(f'Min: {min_temperature:.2f}°F', (body_temp_timestamps[min_temp_index], min_temperature), textcoords="offset points", xytext=(0,-15), ha='center')
-
-            plt.xlabel('Time')
-            plt.ylabel('Temperature (°F)')
-            plt.title('Body Temperature Data Over Time')
-            plt.legend()
-
-        plt.tight_layout()
-        plt.show()
+@A
 
 
 # Sensor Class to update temperature and humidity values
@@ -301,9 +235,8 @@ def rgb_camera_thread():
     net = poseNet('densenet121-body', threshold=0.15)
 
     # Initialize the camera or video input source
-    #cam = jetson_utils.videoSource("csi://0")
-    cam = jetson_utils.videoSource("/dev/video0")
-    disp = jetson_utils.videoOutput("display://0")
+    cam = jetson_utils.videoSource("csi://0")
+    disp = jetson_utils.videoOutput("rtsp://@:5000/live")
 
     # Create a font for text overlay
     font = jetson_utils.cudaFont()

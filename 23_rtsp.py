@@ -301,9 +301,8 @@ def rgb_camera_thread():
     net = poseNet('densenet121-body', threshold=0.15)
 
     # Initialize the camera or video input source
-    #cam = jetson_utils.videoSource("csi://0")
-    cam = jetson_utils.videoSource("/dev/video0")
-    disp = jetson_utils.videoOutput("display://0")
+    cam = jetson_utils.videoSource("csi://0")
+    disp = jetson_utils.videoOutput("rtsp://@:5000/live")
 
     # Create a font for text overlay
     font = jetson_utils.cudaFont()
